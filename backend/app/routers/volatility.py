@@ -7,7 +7,7 @@ from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models.price import BtcDaily
+from app.models.price import CoinDaily
 from app.schemas.volatility import ModelPrediction, VolatilityPredict
 from app.services.garch import predict_all, fit_garch, fit_tgarch, fit_har_garch, fit_har_tgarch
 from app.services.risk_score import compute_risk_score
@@ -17,8 +17,14 @@ router = APIRouter(prefix="/api/volatility", tags=["volatility"])
 WINDOW = 60  # rolling window for fitting
 
 
-def _load_series(db: Session, days: int = 400):
-    rows = db.query(BtcDaily).order_by(desc(BtcDaily.date)).limit(days).all()
+def _load_series(db: Session, days: int = 400, symbol: str = "BTC"):
+    rows = (
+        db.query(CoinDaily)
+        .filter(CoinDaily.symbol == symbol)
+        .order_by(desc(CoinDaily.date))
+        .limit(days)
+        .all()
+    )
     rows.reverse()
     if not rows:
         return None, None, None
@@ -35,8 +41,11 @@ def _load_series(db: Session, days: int = 400):
 
 
 @router.get("/predict", response_model=VolatilityPredict)
-def volatility_predict(db: Session = Depends(get_db)):
-    returns, volume, fng = _load_series(db)
+def volatility_predict(
+    coin: str = Query(default="BTC", regex="^(BTC|ETH|SOL)$"),
+    db: Session = Depends(get_db),
+):
+    returns, volume, fng = _load_series(db, symbol=coin)
     if returns is None or len(returns) < 60:
         return VolatilityPredict(predictions=[], risk_score=0, risk_label="N/A")
 
@@ -51,10 +60,20 @@ def volatility_predict(db: Session = Depends(get_db)):
 
 
 @router.get("/compare")
-def volatility_compare(days: int = Query(default=90, le=180), db: Session = Depends(get_db)):
+def volatility_compare(
+    days: int = Query(default=90, le=180),
+    coin: str = Query(default="BTC", regex="^(BTC|ETH|SOL)$"),
+    db: Session = Depends(get_db),
+):
     """Return daily rolling volatility predictions for all 5 models."""
     total_needed = days + WINDOW + 30
-    rows = db.query(BtcDaily).order_by(desc(BtcDaily.date)).limit(total_needed).all()
+    rows = (
+        db.query(CoinDaily)
+        .filter(CoinDaily.symbol == coin)
+        .order_by(desc(CoinDaily.date))
+        .limit(total_needed)
+        .all()
+    )
     rows.reverse()
     if len(rows) < WINDOW + 30:
         return []
@@ -64,19 +83,18 @@ def volatility_compare(days: int = Query(default=90, le=180), db: Session = Depe
     returns_series = pd.Series(returns, index=dates)
 
     results = []
-    step = max(1, days // 60)  # sample every N days to keep response fast
+    step = max(1, days // 60)
 
     for i in range(WINDOW + 30, len(rows), step):
         window_returns = returns[i - WINDOW:i]
         window_series = returns_series.iloc[i - WINDOW:i]
-        realized = abs(returns[i]) * math.sqrt(365) * 100  # annualized
+        realized = abs(returns[i]) * math.sqrt(365) * 100
 
         row_data = {
             "date": dates[i].isoformat(),
             "realized": round(realized, 2),
         }
 
-        # Fit each model on the rolling window
         try:
             row_data["garch"] = round(fit_garch(window_returns) * math.sqrt(365) * 100, 2)
         except Exception:

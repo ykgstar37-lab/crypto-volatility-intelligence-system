@@ -29,9 +29,16 @@ function addLog(setLogs, type, message, data) {
     setLogs(prev => [...prev.slice(-50), { time, type, message, data }]);
 }
 
+const COINS = [
+    { id: 'BTC', name: 'Bitcoin', icon: '₿', color: '#f7931a' },
+    { id: 'ETH', name: 'Ethereum', icon: 'Ξ', color: '#627eea' },
+    { id: 'SOL', name: 'Solana', icon: '◎', color: '#00d18c' },
+];
+
 export default function Dashboard() {
     const [lang, setLang] = useState('ko');
     const [dark, setDark] = useState(false);
+    const [coin, setCoin] = useState('BTC');
     const [price, setPrice] = useState(null);
     const [ethPrice, setEthPrice] = useState(null);
     const [history, setHistory] = useState([]);
@@ -41,8 +48,10 @@ export default function Dashboard() {
     const [logs, setLogs] = useState([]);
     const [activeSection, setActiveSection] = useState('dashboard');
     const [toasts, setToasts] = useState([]);
+    const [multiPrices, setMultiPrices] = useState({});
 
     const t = translations[lang];
+    const currentCoin = COINS.find(c => c.id === coin) || COINS[0];
 
     const addToast = (toast) => {
         const id = Date.now() + Math.random();
@@ -52,57 +61,59 @@ export default function Dashboard() {
 
     // WebSocket real-time ticks
     const wsLogRef = (type, msg, data) => addLog(setLogs, type, msg, data);
-    const { btc: wsBtc, eth: wsEth, connected: wsConnected } = useRealtimePrice(wsLogRef);
+    const { btc: wsBtc, eth: wsEth, sol: wsSol, connected: wsConnected } = useRealtimePrice(wsLogRef);
 
-    // Merge WS tick into price state for BTC
-    const liveBtcPrice = wsBtc?.price ?? price?.price;
-    // Merge WS tick into ETH
-    const liveEthPrice = wsEth ? { usd: wsEth.price, usd_24h_change: ethPrice?.usd_24h_change } : ethPrice;
+    // Map WS ticks by symbol
+    const wsTicks = { BTC: wsBtc, ETH: wsEth, SOL: wsSol };
 
-    const load = async (days = 365) => {
+    // Live price for the currently selected coin
+    const liveCoinPrice = wsTicks[coin]?.price ?? price?.price;
+    // Live prices for all coins (for the mini cards)
+    const liveEthPrice = wsEth ? { usd: wsEth.price, usd_24h_change: multiPrices.ETH?.change_24h ?? ethPrice?.usd_24h_change } : ethPrice;
+
+    const load = async (days = 365, selectedCoin = coin) => {
         try {
             setLoading(true);
-            addLog(setLogs, 'info', 'Fetching /api/price/current...');
-            const priceData = await fetchCurrentPrice();
-            addLog(setLogs, 'success', `BTC Price: $${priceData.price.toLocaleString()}`, `FNG: ${priceData.fng}`);
+            addLog(setLogs, 'info', `Fetching /api/price/current?coin=${selectedCoin}...`);
+            const priceData = await fetchCurrentPrice(selectedCoin);
+            addLog(setLogs, 'success', `${selectedCoin} Price: $${priceData.price.toLocaleString()}`, `FNG: ${priceData.fng}`);
             setPrice(priceData);
 
-            addLog(setLogs, 'info', `Fetching /api/price/history?days=${days}...`);
-            const historyData = await fetchPriceHistory(days);
+            addLog(setLogs, 'info', `Fetching /api/price/history?coin=${selectedCoin}&days=${days}...`);
+            const historyData = await fetchPriceHistory(days, selectedCoin);
             addLog(setLogs, 'success', `Loaded ${historyData.length} data points`);
             setHistory(historyData);
 
-            addLog(setLogs, 'info', 'Fetching /api/volatility/predict...');
-            const volData = await fetchVolatilityPredict();
+            addLog(setLogs, 'info', `Fetching /api/volatility/predict?coin=${selectedCoin}...`);
+            const volData = await fetchVolatilityPredict(selectedCoin);
             addLog(setLogs, 'success', `${volData.predictions.length} models predicted`, `Risk: ${volData.risk_score.toFixed(1)} (${volData.risk_label})`);
             setVolatility(volData);
 
-            // ETH price (non-blocking)
+            // Multi prices (non-blocking)
             fetchEthPrice().then(setEthPrice).catch(() => {});
 
             setError(null);
         } catch (e) {
             addLog(setLogs, 'error', `Connection failed: ${e.message}`);
             setError('서버에 연결 중입니다...');
-            setTimeout(() => load(days), 5000);
+            setTimeout(() => load(days, selectedCoin), 5000);
         } finally {
             setLoading(false);
         }
     };
 
-    useEffect(() => { load(); }, []);
+    // Reload when coin changes
+    useEffect(() => { load(365, coin); }, [coin]);
 
-    // Auto-refresh full data (FNG, volume, etc.) — WS only gives price ticks
-    // If WS connected: every 5min. If not: every 60s as fallback.
+    // Auto-refresh
     useEffect(() => {
         const interval = setInterval(async () => {
             try {
                 const label = wsConnected ? 'Scheduled refresh' : 'Auto-refresh (polling)';
-                addLog(setLogs, 'info', `${label}: /api/price/current...`);
-                const priceData = await fetchCurrentPrice();
+                addLog(setLogs, 'info', `${label}: /api/price/current?coin=${coin}...`);
+                const priceData = await fetchCurrentPrice(coin);
                 setPrice(priceData);
                 addLog(setLogs, 'success', `${label}: $${priceData.price.toLocaleString()}`, `FNG: ${priceData.fng}`);
-                // Also refresh ETH via CoinGecko (24h change etc.)
                 fetchEthPrice().then(setEthPrice).catch(() => {});
             } catch (e) {
                 addLog(setLogs, 'error', `Refresh failed: ${e.message}`);
@@ -127,8 +138,8 @@ export default function Dashboard() {
     }, []);
 
     const handlePeriodChange = (days) => {
-        addLog(setLogs, 'info', `Reloading history: ${days} days...`);
-        fetchPriceHistory(days).then(d => {
+        addLog(setLogs, 'info', `Reloading ${coin} history: ${days} days...`);
+        fetchPriceHistory(days, coin).then(d => {
             setHistory(d);
             addLog(setLogs, 'success', `Loaded ${d.length} data points`);
         }).catch(() => {});
@@ -180,7 +191,21 @@ export default function Dashboard() {
                         </div>
                         <span className="text-base font-bold text-gray-900">CryptoVol</span>
                     </div>
-                    <div className="hidden lg:block"></div>
+                    {/* Coin Selector */}
+                    <div className={`hidden lg:flex items-center rounded-lg p-0.5 border ${dark ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-100'}`}>
+                        {COINS.map(c => (
+                            <button key={c.id} onClick={() => setCoin(c.id)}
+                                className={`flex items-center gap-1.5 px-3 py-1 text-[11px] font-semibold rounded-md transition ${
+                                    coin === c.id
+                                        ? `${dark ? 'bg-gray-700' : 'bg-white'} shadow-sm`
+                                        : dark ? 'text-gray-500' : 'text-gray-400'
+                                }`}
+                                style={coin === c.id ? { color: c.color } : {}}>
+                                <span className="text-sm">{c.icon}</span>
+                                {c.id}
+                            </button>
+                        ))}
+                    </div>
                     <div className="flex items-center gap-3">
                         {/* Language Toggle */}
                         <div className="flex bg-gray-50 rounded-lg p-0.5 border border-gray-100">
@@ -220,11 +245,11 @@ export default function Dashboard() {
                     {/* Stats Row */}
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                         <StatCard
-                            label={t.btcPrice}
-                            value={liveBtcPrice ? `$${liveBtcPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : '—'}
+                            label={`${currentCoin.name} ${lang === 'ko' ? '가격' : 'Price'}`}
+                            value={liveCoinPrice ? `$${liveCoinPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : '—'}
                             change={price?.change_24h}
                             sub={wsConnected ? 'LIVE' : '24h'}
-                            icon="₿"
+                            icon={currentCoin.icon}
                         />
                         <StatCard
                             label={t.volume}
@@ -268,7 +293,7 @@ export default function Dashboard() {
                             sub={wsConnected ? 'LIVE' : 'ETH'}
                             icon="Ξ"
                         />
-                        <PriceAlert currentPrice={liveBtcPrice} t={t} addToast={addToast} />
+                        <PriceAlert currentPrice={liveCoinPrice} t={t} addToast={addToast} />
                         <ReportDownload price={price} volatility={volatility} t={t} />
                     </div>
 
@@ -310,7 +335,7 @@ export default function Dashboard() {
             </main>
 
             {/* Bottom Dock - floating tools bar */}
-            <BottomDock dark={dark} ethPrice={liveEthPrice} price={{ ...price, price: liveBtcPrice }} volatility={volatility} t={t} addToast={addToast} />
+            <BottomDock dark={dark} ethPrice={liveEthPrice} price={{ ...price, price: liveCoinPrice }} volatility={volatility} t={t} addToast={addToast} />
 
             {/* Toast notifications */}
             <ToastContainer toasts={toasts} onDismiss={dismissToast} />

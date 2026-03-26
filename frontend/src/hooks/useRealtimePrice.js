@@ -13,6 +13,7 @@ const WS_BASE = import.meta.env.VITE_WS_URL || `ws://${window.location.hostname}
 export default function useRealtimePrice(addLog) {
     const [btc, setBtc] = useState(null);
     const [eth, setEth] = useState(null);
+    const [sol, setSol] = useState(null);
     const [connected, setConnected] = useState(false);
     const wsRef = useRef(null);
     const reconnectTimer = useRef(null);
@@ -37,6 +38,8 @@ export default function useRealtimePrice(addLog) {
                         setBtc({ price: data.price, ts: data.ts });
                     } else if (data.symbol === 'ETH') {
                         setEth({ price: data.price, ts: data.ts });
+                    } else if (data.symbol === 'SOL') {
+                        setSol({ price: data.price, ts: data.ts });
                     }
                 }
             } catch {
@@ -63,5 +66,5 @@ export default function useRealtimePrice(addLog) {
         };
     }, [connect]);
 
-    return { btc, eth, connected };
+    return { btc, eth, sol, connected };
 }

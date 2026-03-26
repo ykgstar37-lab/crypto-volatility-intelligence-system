@@ -29,8 +29,8 @@ clients: Set[WebSocket] = set()
 latest: dict[str, dict] = {}
 
 BINANCE_WS = "wss://stream.binance.com:9443/ws"
-STREAMS = ["btcusdt@trade", "ethusdt@trade"]
-SYMBOL_MAP = {"BTCUSDT": "BTC", "ETHUSDT": "ETH"}
+STREAMS = ["btcusdt@trade", "ethusdt@trade", "solusdt@trade"]
+SYMBOL_MAP = {"BTCUSDT": "BTC", "ETHUSDT": "ETH", "SOLUSDT": "SOL"}
 
 
 async def broadcast(message: dict):

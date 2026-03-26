@@ -7,6 +7,13 @@ from app.config import settings
 
 _semaphore = asyncio.Semaphore(5)
 
+# CoinGecko ID mapping
+COIN_IDS = {
+    "BTC": "bitcoin",
+    "ETH": "ethereum",
+    "SOL": "solana",
+}
+
 
 async def _get(url: str, params: dict | None = None) -> dict:
     async with _semaphore:
@@ -16,29 +23,56 @@ async def _get(url: str, params: dict | None = None) -> dict:
             return resp.json()
 
 
-async def get_current_price() -> dict:
+async def get_current_price(symbol: str = "BTC") -> dict:
+    coin_id = COIN_IDS.get(symbol, "bitcoin")
     data = await _get(
         f"{settings.coingecko_base_url}/simple/price",
         {
-            "ids": "bitcoin",
+            "ids": coin_id,
             "vs_currencies": "usd",
             "include_24hr_change": "true",
             "include_24hr_vol": "true",
             "include_last_updated_at": "true",
         },
     )
-    btc = data["bitcoin"]
+    coin = data[coin_id]
     return {
-        "price": btc["usd"],
-        "change_24h": btc.get("usd_24h_change", 0),
-        "volume_24h": btc.get("usd_24h_vol", 0),
-        "timestamp": btc.get("last_updated_at", 0),
+        "price": coin["usd"],
+        "change_24h": coin.get("usd_24h_change", 0),
+        "volume_24h": coin.get("usd_24h_vol", 0),
+        "timestamp": coin.get("last_updated_at", 0),
     }
 
 
-async def get_market_chart(days: int = 365) -> list[dict]:
+async def get_multi_prices() -> dict:
+    """Fetch prices for all supported coins at once."""
+    ids = ",".join(COIN_IDS.values())
     data = await _get(
-        f"{settings.coingecko_base_url}/coins/bitcoin/market_chart",
+        f"{settings.coingecko_base_url}/simple/price",
+        {
+            "ids": ids,
+            "vs_currencies": "usd",
+            "include_24hr_change": "true",
+            "include_24hr_vol": "true",
+            "include_last_updated_at": "true",
+        },
+    )
+    result = {}
+    for symbol, coin_id in COIN_IDS.items():
+        if coin_id in data:
+            coin = data[coin_id]
+            result[symbol] = {
+                "price": coin["usd"],
+                "change_24h": coin.get("usd_24h_change", 0),
+                "volume_24h": coin.get("usd_24h_vol", 0),
+            }
+    return result
+
+
+async def get_market_chart(days: int = 365, symbol: str = "BTC") -> list[dict]:
+    coin_id = COIN_IDS.get(symbol, "bitcoin")
+    data = await _get(
+        f"{settings.coingecko_base_url}/coins/{coin_id}/market_chart",
         {"vs_currency": "usd", "days": str(days), "interval": "daily"},
     )
     prices = data.get("prices", [])
