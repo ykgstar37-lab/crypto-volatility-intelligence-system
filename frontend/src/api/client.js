@@ -14,4 +14,6 @@ export const fetchBacktest = (start, end) => client.get(`/api/backtest?start=${s
 export const fetchSignal = () => client.get('/api/signal').then(r => r.data);
 export const fetchLeaderboard = () => client.get('/api/signal/leaderboard').then(r => r.data);
 export const fetchBriefing = (lang = 'ko') => client.get(`/api/briefing?lang=${lang}`).then(r => r.data);
+export const simulatePortfolio = (weights, investment = 10000, horizon = 7) =>
+    client.post('/api/portfolio/simulate', { weights, investment, horizon }).then(r => r.data);
 export const fetchEthPrice = () => axios.get('https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd&include_24hr_change=true').then(r => r.data.ethereum);

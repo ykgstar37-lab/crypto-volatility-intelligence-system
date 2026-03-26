@@ -15,6 +15,7 @@ import BacktestPanel from '../components/BacktestPanel';
 import ModelExplainer from '../components/ModelExplainer';
 import AiMascot from '../components/AiMascot';
 import AccuracyTracker from '../components/AccuracyTracker';
+import PortfolioSimulator from '../components/PortfolioSimulator';
 import BottomDock from '../components/BottomDock';
 import PriceAlert from '../components/PriceAlert';
 import SignalAccuracy from '../components/SignalAccuracy';
@@ -320,6 +321,11 @@ export default function Dashboard() {
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                         <ModelExplainer t={t} />
                         <ModelTable predictions={volatility?.predictions || []} t={t} />
+                    </div>
+
+                    {/* Row 5.5: Portfolio Simulator */}
+                    <div id="portfolio" className="mb-6">
+                        <PortfolioSimulator t={t} />
                     </div>
 
                     {/* Row 6: Backtest */}

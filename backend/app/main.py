@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import price, volatility, backtest, signal, briefing
+from app.routers import price, volatility, backtest, signal, briefing, portfolio
 from app.routers.ws import router as ws_router, binance_listener
 from app.scheduler import backfill_data, daily_fetch, init_db
 
@@ -70,6 +70,7 @@ app.include_router(volatility.router)
 app.include_router(backtest.router)
 app.include_router(signal.router)
 app.include_router(briefing.router)
+app.include_router(portfolio.router)
 app.include_router(ws_router)
 
 
