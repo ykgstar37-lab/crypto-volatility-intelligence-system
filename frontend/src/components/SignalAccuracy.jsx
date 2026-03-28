@@ -1,19 +1,19 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import { fetchSignalAccuracy } from '../api/client';
 
-const API_BASE = import.meta.env.VITE_API_URL || '';
-
-export default function SignalAccuracy({ t = {} }) {
+export default function SignalAccuracy({ coin = 'BTC', t = {} }) {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const lang = t.priceTitle === '비트코인 가격' ? 'ko' : 'en';
 
     useEffect(() => {
-        axios.get(`${API_BASE}/api/signal/accuracy`)
-            .then(r => setData(r.data))
+        setData(null);
+        setLoading(true);
+        fetchSignalAccuracy(coin)
+            .then(setData)
             .catch(() => {})
             .finally(() => setLoading(false));
-    }, []);
+    }, [coin]);
 
     return (
         <div className="card bg-white rounded-2xl border border-gray-100 p-5 shadow-sm h-full flex flex-col">

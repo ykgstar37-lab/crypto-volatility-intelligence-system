@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { fetchBacktest } from '../api/client';
 
 const METRIC_INFO = [
@@ -34,17 +34,20 @@ function MetricHeader({ col }) {
     );
 }
 
-export default function BacktestPanel({ t = {} }) {
+export default function BacktestPanel({ coin = 'BTC', t = {} }) {
     const [start, setStart] = useState('');
     const [end, setEnd] = useState('');
     const [result, setResult] = useState(null);
     const [loading, setLoading] = useState(false);
 
+    // Reset result when coin changes
+    useEffect(() => { setResult(null); }, [coin]);
+
     const run = async () => {
         if (!start || !end) return;
         setLoading(true);
         try {
-            const data = await fetchBacktest(start, end);
+            const data = await fetchBacktest(start, end, coin);
             setResult(data);
         } catch {
             setResult(null);

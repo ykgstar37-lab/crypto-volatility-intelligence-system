@@ -10,7 +10,7 @@ const MODELS = [
     { key: 'har_tgarch', name: 'HAR-TGARCH', color: '#f59e0b', dash: '' },
 ];
 
-export default function VolatilityChart({ t = {} }) {
+export default function VolatilityChart({ coin = 'BTC', t = {} }) {
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(true);
     const [activeModels, setActiveModels] = useState(new Set(MODELS.map(m => m.key)));
@@ -18,11 +18,11 @@ export default function VolatilityChart({ t = {} }) {
 
     useEffect(() => {
         setLoading(true);
-        fetchVolatilityCompare(period)
+        fetchVolatilityCompare(period, coin)
             .then(setData)
             .catch(() => {})
             .finally(() => setLoading(false));
-    }, [period]);
+    }, [period, coin]);
 
     const toggle = (key) => {
         setActiveModels(prev => {

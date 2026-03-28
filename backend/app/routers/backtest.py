@@ -43,11 +43,12 @@ def _calc_metrics(predicted: np.ndarray, realized: np.ndarray) -> dict:
 def backtest(
     start: date = Query(...),
     end: date = Query(...),
+    coin: str = Query(default="BTC", pattern="^(BTC|ETH|SOL)$"),
     db: Session = Depends(get_db),
 ):
     rows = (
         db.query(CoinDaily)
-        .filter(CoinDaily.symbol == "BTC", CoinDaily.date >= start, CoinDaily.date <= end)
+        .filter(CoinDaily.symbol == coin, CoinDaily.date >= start, CoinDaily.date <= end)
         .order_by(CoinDaily.date)
         .all()
     )

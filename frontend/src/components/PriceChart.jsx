@@ -8,7 +8,7 @@ const PERIODS = [
     { label: 'All', days: 2000 },
 ];
 
-export default function PriceChart({ data, onPeriodChange, t = {} }) {
+export default function PriceChart({ data, onPeriodChange, t = {}, coinName = 'Bitcoin', livePrice }) {
     const [active, setActive] = useState(365);
 
     const handlePeriod = (days) => {
@@ -21,7 +21,7 @@ export default function PriceChart({ data, onPeriodChange, t = {} }) {
     return (
         <div className="card bg-white rounded-2xl border border-gray-100 p-6 shadow-sm h-full">
             <div className="flex items-center justify-between mb-1">
-                <h3 className="text-sm font-bold text-gray-800">{t.priceTitle || 'Bitcoin Price'}</h3>
+                <h3 className="text-sm font-bold text-gray-800">{coinName} {t.priceTitle === '비트코인 가격' ? '가격' : 'Price'}</h3>
                 <div className="flex gap-0.5 bg-gray-50 rounded-lg p-0.5">
                     {PERIODS.map(p => (
                         <button key={p.days} onClick={() => handlePeriod(p.days)}
@@ -31,8 +31,8 @@ export default function PriceChart({ data, onPeriodChange, t = {} }) {
                     ))}
                 </div>
             </div>
-            {data.length > 0 && (
-                <p className="text-2xl font-bold text-gray-900 mb-4">${data[data.length - 1]?.close?.toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
+            {(livePrice || data.length > 0) && (
+                <p className="text-2xl font-bold text-gray-900 mb-4">${(livePrice ?? data[data.length - 1]?.close)?.toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
             )}
             <ResponsiveContainer width="100%" height={260}>
                 <AreaChart data={data}>

@@ -1,138 +1,134 @@
 # CryptoVol Dashboard
 
-> **P학기 팀 프로젝트(GARCH 변동성 분석)를 개인 프로젝트로 확장한 실시간 멀티코인 변동성 예측 대시보드**
+> **GARCH 변동성 모형을 실시간 웹 서비스로 전환한 멀티코인 변동성 예측 대시보드**
+
+## 스크린샷 & 데모
+
+### 메인 대시보드
+
+![메인 대시보드](image/cryptovol/cryptovol-main.png)
+*BTC/ETH/SOL 실시간 가격, GARCH 변동성 예측, Risk Score, 공포탐욕지수를 한눈에 확인*
+
+### 코인 전환 실시간 반응
+
+<p align="center">
+  <img src="image/cryptovol/coin-switch-eth.gif" width="49%" alt="ETH 전환" />
+  <img src="image/cryptovol/coin-switch-sol.gif" width="49%" alt="SOL 전환" />
+</p>
+
+*BTC → ETH → SOL 탭 클릭 시 가격, 차트, 변동성 예측, 시그널 등 전체 대시보드 데이터가 실시간 전환*
+
+### 매매 시그널 + 모형 정확도
+
+![매매 시그널](image/cryptovol/cryptovol-signal.png)
+*FNG + 변동성 추세 기반 매매 시그널(BUY/SELL/NEUTRAL)과 모형별 RMSE 리더보드*
+
+### 포트폴리오 Monte Carlo 시뮬레이션
+
+![포트폴리오 시뮬레이션](image/cryptovol/portfolio-sim.gif)
+*BTC/ETH/SOL 비중 조절 → 투자금액·기간 설정 → Monte Carlo 시뮬레이션 실행 → VaR, Sharpe Ratio 결과 확인*
+
+### 공포탐욕지수 + 변동성 비교
+
+![FNG 차트](image/cryptovol/cryptovol-fng.png)
+*Fear & Greed Index 게이지 및 추이 차트, 5개 GARCH 모형 변동성 비교*
+
+### 다크모드 + AI 브리핑
+
+![다크모드 AI 브리핑](image/cryptovol/dark-ai-briefing.gif)
+*다크모드 전환 후 AI 마스코트 클릭 → GPT-4o-mini 기반 시장 브리핑 말풍선 표시*
+
+<p align="center">
+  <img src="image/cryptovol/cryptovol-darkmode.png" width="49%" alt="다크모드" />
+  <img src="image/cryptovol/cryptovol-ai.png" width="49%" alt="AI 브리핑" />
+</p>
+
+### 포트폴리오 시뮬레이터 결과
+
+![포트폴리오](image/cryptovol/cryptovol-portfolio.png)
+*Monte Carlo 1,000회 시뮬레이션 히스토그램, VaR(95%/99%), Sharpe Ratio, 코인별 리스크 분해*
 
 ---
 
 ## 프로젝트 배경
 
-### 원본 프로젝트 (P학기 — 팀 프로젝트)
+P학기(통계 실무 프로젝트)에서 팀으로 비트코인 변동성을 GARCH 모형으로 분석했습니다. 팀에서는 CSV 데이터 기반 Jupyter 분석과 모형 비교를 수행했고, 이 프로젝트는 그 분석 결과를 **실시간 풀스택 웹 서비스로 확장한 개인 프로젝트**입니다.
 
-P학기(통계 실무 프로젝트)에서 **6조 52경** 팀으로 비트코인 변동성을 분석했습니다.
-
-- **주제**: 암호화폐 변동성 비교 및 분석: GARCH 모델을 기반으로 한 예측
-- **기간**: 2023.12 — 2024.01
-- **데이터**: 2018.02 ~ 2023.11 (2,129 거래일)
-- **핵심 분석**:
-  - GARCH(1,1), TGARCH, HAR-GARCH, HAR-TGARCH, HAR-TGARCH-X 5개 모형 체계적 비교
-  - ADF 검정, ARCH-LM 검정, 정규성 검정 등 통계적 사전 검정
-  - BTC ↔ FNG 상관계수 0.72 (p < 0.001) 확인
-  - 외생변수(Volume + FNG)의 예측력 향상 기여도 실증 분석
-  - TGARCH 레버리지 효과(γ = 0.099) — 하락 시 변동성 비대칭 확인
-  - HAR 구조(1일/7일/30일)의 다중 스케일 변동성 포착
-
-### 확장 (개인 프로젝트)
-
-팀 프로젝트의 분석 결과를 **실제 서비스**로 전환했습니다.
-
-| 구분 | P학기 (팀) | CryptoVol Dashboard (개인) |
-|------|-----------|---------------------------|
-| 형태 | Python 분석 코드 + 논문 | 풀스택 웹 서비스 |
+| 구분 | P학기 (팀) | 이 프로젝트 (개인) |
+|------|-----------|-------------------|
+| 형태 | Jupyter 분석 + 논문 | 풀스택 웹 서비스 |
 | 데이터 | CSV 정적 데이터 | CoinGecko API + Binance WebSocket 실시간 |
 | 코인 | BTC 단일 | BTC / ETH / SOL 멀티코인 |
-| 모형 | Jupyter에서 수동 실행 | API로 자동 예측 서빙 + 정확도 추적 |
-| 결과 | matplotlib 차트 | React 인터랙티브 대시보드 |
-| 배포 | 로컬 실행 | Render + Vercel 클라우드 |
+| 모형 | 수동 실행 | API 자동 서빙 + 정확도 추적 |
+| 배포 | 로컬 | Render + Vercel 클라우드 |
+
+**개인 확장에서 직접 설계·구현한 부분:**
+- FastAPI + React 풀스택 아키텍처 설계
+- Binance WebSocket 릴레이 서버 구현
+- GARCH 모형 실시간 API 서빙 (캐싱, 에러 핸들링)
+- Monte Carlo 포트폴리오 시뮬레이터
+- 예측 정확도 트래커 / 매매 시그널 엔진 / 백테스트 시스템
+- GPT-4o-mini 기반 AI 시장 브리핑
+- 한/영 다국어, 다크모드, 가격 알림 등 전체 프론트엔드
 
 ---
 
-## 핵심 기능
+## 핵심 기능과 기술적 의사결정
 
-### 1. 실시간 멀티코인 변동성 예측
-CoinGecko API + Binance WebSocket으로 BTC / ETH / SOL 실시간 가격, 거래량, FNG 지수를 수집하고 5개 GARCH 모형으로 변동성을 예측합니다.
+### 1. GARCH 모형 실시간 API 서빙
 
-### 2. 5개 GARCH 모형 비교
+5개 GARCH 모형(GARCH, TGARCH, HAR-GARCH, HAR-TGARCH, HAR-TGARCH-X)으로 변동성을 예측합니다.
 
-| 모형 | 수식 | 특징 |
-|------|------|------|
-| **GARCH(1,1)** | σ²ₜ = ω + α·r²ₜ₋₁ + β·σ²ₜ₋₁ | 기본 조건부 분산 모형 |
-| **TGARCH** | + γ·r²ₜ₋₁·I(rₜ₋₁<0) | 비대칭 레버리지 효과 |
-| **HAR-GARCH** | HARCH(1,7,30) | 단·중·장기 변동성 구조 |
-| **HAR-TGARCH** | HAR + 비대칭 결합 | HAR + TGARCH OLS |
-| **HAR-TGARCH-X** | + Volume + FNG | 외생변수 추가 |
+| 모형 | 특징 |
+|------|------|
+| GARCH(1,1) | 기본 조건부 분산 |
+| TGARCH | 비대칭 레버리지 효과 (γ = 0.099) |
+| HAR-GARCH | 단·중·장기(1/7/30일) 변동성 구조 |
+| HAR-TGARCH | HAR + 비대칭 결합 |
+| HAR-TGARCH-X | + 외생변수 (Volume, FNG) |
 
-### 3. 모형 인터랙티브 설명 (Model Explainer)
-각 GARCH 모형의 수식, 파라미터, 특징, 인사이트를 탭 형태로 설명합니다. 통계 모형에 익숙하지 않은 사용자도 이해할 수 있도록 교육용 컴포넌트를 제공합니다.
+**기술적 결정**: Jupyter에서 수동 실행하던 모형을 API 요청마다 적합(fit)해야 했습니다. `arch` 라이브러리의 적합은 수십~수백ms가 걸리므로, 인메모리 캐싱으로 반복 호출을 방지하고 120일 윈도우로 입력을 제한했습니다. 개별 모형 실패 시 0.0을 반환하여 하나의 모형 실패가 전체 응답을 깨뜨리지 않도록 했습니다.
 
-### 4. 위험도 점수 (Risk Score)
-5개 모형의 연간화 변동성 가중 평균으로 0~100 위험도 점수를 산출합니다.
-- 0~25: Low / 25~50: Moderate / 50~75: High / 75~100: Extreme
+### 2. Binance WebSocket 실시간 스트리밍
 
-### 5. 매매 시그널 (Trading Signal)
-FNG 지수 + 변동성 추세 + 가격 모멘텀을 종합하여 매매 시그널을 자동 생성합니다.
+BTC/ETH/SOL 실시간 거래가를 밀리초 단위로 표시합니다.
 
-| 조건 | 시그널 |
-|------|--------|
-| FNG < 20 (극단적 공포) + 변동성 하락 | **BUY** — 매수 기회 가능성 |
-| FNG > 80 (극단적 탐욕) + 변동성 급등 | **SELL** — 조정 주의 |
-| 그 외 | **NEUTRAL** |
+**기술적 결정**: 프론트엔드에서 Binance에 직접 연결하면 CORS와 키 노출 문제가 발생합니다. FastAPI WebSocket 엔드포인트가 Binance 스트림을 수신하고, Set 기반 클라이언트 추적으로 연결된 브라우저에 브로드캐스트하는 릴레이 구조를 설계했습니다. 죽은 연결은 브로드캐스트 루프에서 자동 제거되고, 연결 끊김 시 3초 후 자동 재연결합니다.
 
-- Score: -100 (Strong Sell) ~ +100 (Strong Buy)
-- 시그널 적중률 히스토리 추적 및 시각화
+### 3. Monte Carlo 포트폴리오 시뮬레이터
 
-### 6. 예측 정확도 트래커 (Accuracy Tracker)
-GARCH 모형별 예측 정확도를 60일 롤링 기준으로 시계열 추적합니다.
-- 모형별 RMSE 랭킹 (메달 표시)
-- Cumulative RMSE / Daily Error 두 가지 뷰 모드
+BTC/ETH/SOL 비중을 조절하여 포트폴리오 리스크를 분석합니다.
 
-### 7. 모형 정확도 리더보드
-최근 30일 롤링 예측 기준으로 가장 정확한 GARCH 모형을 실시간 랭킹합니다.
+**기술적 결정**: GARCH 예측 변동성을 기반으로 1,000개 시나리오의 Monte Carlo 시뮬레이션을 수행합니다. NumPy 행렬 연산(`df.values @ w_arr`)으로 가중 수익률을 효율적으로 계산하고, VaR(95%/99%), Sharpe Ratio, 코인별 리스크 분해, 상관행렬을 산출합니다.
 
-### 8. 인터랙티브 백테스트
-날짜 범위를 선택하여 각 모형의 MSE, RMSE, MAE, MAPE, R² 성능 지표를 비교할 수 있습니다. 어떤 시장 구간에서 어떤 모형이 최적이었는지 확인 가능합니다.
+### 4. AI 시장 브리핑
 
-### 9. 포트폴리오 시뮬레이터 (Portfolio Simulator)
-Monte Carlo 시뮬레이션 기반 멀티코인 포트폴리오 리스크 분석 도구입니다.
-- BTC / ETH / SOL 비중 슬라이더로 포트폴리오 구성
-- GARCH 변동성 기반 VaR (95%, 99%) 산출
-- 1,000 시나리오 Monte Carlo 시뮬레이션
-- Sharpe Ratio, 코인별 리스크 분해, 상관행렬
+GPT-4o-mini가 가격 추세, FNG 지수, 변동성 상태를 종합하여 일일 시장 분석을 제공합니다.
 
-### 10. AI 시장 브리핑 (AI Briefing)
-GPT-4o-mini 기반 일일 BTC 시장 분석을 제공합니다.
-- 날씨 비유, 가격 추세, FNG 해석, 변동성 상태, 행동 추천
-- 플로팅 AI 마스코트 말풍선 인터페이스
-- 한국어/영어 자동 전환
+**기술적 결정**: 7일/30일 롤링 통계를 컨텍스트로 구성하고, 구조화된 프롬프트(날씨 비유, 추세, 행동 추천)로 일관된 브리핑 포맷을 유지합니다. 한국어/영어 프롬프트를 분리하여 자연스러운 다국어 출력을 구현했습니다.
 
-### 11. 가격 알림 (Price Alert)
-BTC 가격 상한/하한 트리거를 설정하면 실시간 WebSocket 가격을 모니터링하여 Toast 알림을 표시합니다.
+### 5. 예측 정확도 트래커 + 백테스트
 
-### 12. 리포트 다운로드
-대시보드 현재 상태(가격, FNG, 모형 예측값)를 타임스탬프 포함 텍스트 파일로 다운로드할 수 있습니다.
+모형별 예측 정확도를 60일 롤링 기준으로 시계열 추적하고, 날짜 범위를 선택하여 MSE, RMSE, MAE, MAPE, R² 성능 지표를 비교할 수 있습니다.
 
-### 13. FNG + 거래량 시각화
-Fear & Greed Index와 거래량을 듀얼축 차트로 시각화하여 시장 심리와 변동성의 관계를 직관적으로 파악합니다.
-
-### 14. Binance WebSocket 실시간 틱
-Binance WebSocket 스트림을 릴레이하여 BTC/ETH/SOL 실시간 거래가를 밀리초 단위로 표시합니다.
-- 자동 재연결 (3초 백오프)
-- WebSocket 연결 시 5분 / 미연결 시 1분 자동 리프레시
-
-### 15. 한/영 다국어 지원
-대시보드 전체 UI가 한국어/영어 전환을 지원합니다.
-
-### 16. 다크/라이트 모드
-전체 UI 테마 전환을 지원합니다.
-
-### 17. 하단 플로팅 독 (Bottom Dock)
-Signal Accuracy, ETH 가격, Price Alert, Report Download에 빠르게 접근할 수 있는 하단 독 바를 제공합니다.
-
-### 18. API 디버그 로그
-실시간 데이터 수집 상태를 터미널 스타일 로그로 확인할 수 있습니다.
+**기술적 결정**: 변동성 예측 서비스에서 가장 중요한 건 "어떤 모형이 지금 가장 정확한가"입니다. 최근 30일 롤링 기준 리더보드로 실시간 랭킹을 제공하고, 백테스트로 특정 시장 구간에서의 최적 모형을 탐색할 수 있게 했습니다.
 
 ---
 
-## 사용자 인사이트
+## 기타 기능
 
-| 인사이트 | 설명 | 대상 |
-|---------|------|------|
-| **매매 타이밍** | FNG + 변동성 기반 시그널로 진입/청산 참고 | 일반 투자자 |
-| **시장 심리** | FNG 게이지 + 추이 차트로 공포/탐욕 즉시 파악 | 심리적 매매 |
-| **모형 신뢰도** | 리더보드 + 정확도 트래커로 현재 가장 정확한 모형 확인 | 연구/분석 |
-| **위험 경고** | Risk Score + 변동성 추세로 위험도 실시간 모니터링 | 리스크 관리 |
-| **기간별 비교** | 백테스트로 특정 시장 구간의 최적 모형 탐색 | 전략 설계 |
-| **포트폴리오 리스크** | VaR + Monte Carlo로 포트폴리오 손실 시나리오 파악 | 포트폴리오 관리 |
-| **AI 브리핑** | GPT-4o-mini가 시장 상황을 자연어로 요약 | 빠른 현황 파악 |
+| 기능 | 설명 |
+|------|------|
+| **매매 시그널** | FNG + 변동성 추세 + 가격 모멘텀 종합 (BUY/SELL/NEUTRAL), 적중률 추적 |
+| **위험도 점수** | 5개 모형 가중평균 → 0~100 스코어 (Low/Moderate/High/Extreme) |
+| **FNG + 거래량 차트** | Fear & Greed Index와 거래량 듀얼축 시각화 |
+| **모형 인터랙티브 설명** | 각 GARCH 모형의 수식, 파라미터, 특징을 탭 형태로 설명 |
+| **가격 알림** | 상한/하한 트리거 설정 → Toast 알림 |
+| **리포트 다운로드** | 대시보드 현황 텍스트 파일 다운로드 |
+| **한/영 전환** | 전체 UI 다국어 지원 |
+| **다크/라이트 모드** | 테마 전환 지원 |
+| **하단 플로팅 독** | 주요 기능 빠른 접근 바 |
+| **API 디버그 로그** | 실시간 데이터 수집 상태 터미널 로그 |
 
 ---
 
@@ -182,9 +178,7 @@ OpenAI API ───────────→├── GARCH Models     ├─
 (GPT-4o-mini)          ├── Risk Score       ├── 정확도 트래커
                        ├── Monte Carlo      ├── 포트폴리오 시뮬레이터
                        └── APScheduler      ├── AI 마스코트 브리핑
-                         (일일 데이터)       ├── FNG + Volume 차트
-                                            ├── 백테스트 테이블
-                                            └── 하단 독 + Price Alert
+                         (일일 데이터)       └── 백테스트 + FNG 차트
 ```
 
 ---
@@ -200,114 +194,13 @@ OpenAI API ───────────→├── GARCH Models     ├─
 | GET | `/api/volatility/predict?coin=BTC` | 5개 모형 변동성 예측 + 위험도 점수 |
 | GET | `/api/volatility/compare?days=90&coin=BTC` | 예측 vs 실현 변동성 비교 |
 | GET | `/api/volatility/accuracy?days=60&coin=BTC` | 모형별 예측 정확도 시계열 |
-| GET | `/api/backtest?start=...&end=...` | 기간별 백테스트 성능 지표 |
-| GET | `/api/signal` | 매매 시그널 (FNG + 변동성 + 모멘텀 종합) |
-| GET | `/api/signal/leaderboard` | 모형 정확도 리더보드 (최근 30일) |
-| GET | `/api/signal/accuracy` | 시그널 적중률 (최근 60일) |
-| GET | `/api/briefing?lang=ko` | AI 시장 브리핑 (GPT-4o-mini) |
-| POST | `/api/portfolio/simulate` | 포트폴리오 VaR + Monte Carlo 시뮬레이션 |
-| WS | `/ws/ticks` | Binance 실시간 틱 릴레이 (BTC/ETH/SOL) |
-
----
-
-## P학기 분석 기반 — 통계적 근거
-
-### 사전 검정
-
-| 검정 | 목적 | 결과 |
-|------|------|------|
-| **ADF 검정** | 시계열 정상성 확인 | 로그수익률 정상 (p < 0.05) |
-| **ARCH-LM 검정** | 이분산성 확인 | ARCH 효과 존재 (p < 0.05) |
-| **정규성 검정** | 수익률 분포 확인 | 정규성 기각 → 두터운 꼬리 |
-
-### 상관 분석
-
-| 변수 쌍 | 상관계수 | p-value | 유의성 |
-|---------|---------|---------|--------|
-| BTC ↔ FNG | 0.72 | 2.2e-16 | 유의 |
-| BTC ↔ KOSPI | -0.03 | 0.98 | 비유의 |
-| BTC ↔ NASDAQ | -0.05 | 0.84 | 비유의 |
-
-### 핵심 발견
-1. **TGARCH 레버리지 효과** (γ = 0.099): 비트코인 하락 시 변동성이 상승 시보다 약 10% 더 증가
-2. **HAR 구조**: 단기(1일)/중기(7일)/장기(30일) 변동성의 다중 스케일 분석이 예측력 향상
-3. **FNG 지수**: 비트코인 가격과 유의미한 상관 (r = 0.72) → 외생변수로 활용 근거
-4. **Volume + FNG**: 거래량(시장 활동 강도)과 심리지수(공포/탐욕)가 보완적 정보 제공
-
----
-
-## 프로젝트 구조
-
-```
-crypto-volatility-dashboard/
-├── README.md
-├── DEVLOG.md
-├── .gitignore
-│
-├── backend/
-│   ├── requirements.txt
-│   ├── .env
-│   └── app/
-│       ├── main.py              # FastAPI 앱 + CORS + lifespan + WS 릴레이
-│       ├── config.py            # 환경설정 (pydantic-settings)
-│       ├── database.py          # SQLite + SQLAlchemy
-│       ├── scheduler.py         # APScheduler 일일 데이터 수집 (BTC/ETH/SOL)
-│       ├── models/
-│       │   └── price.py         # coin_daily 테이블 ORM (멀티코인)
-│       ├── schemas/
-│       │   └── volatility.py    # Pydantic 응답 모델
-│       ├── services/
-│       │   ├── coingecko.py     # CoinGecko API 클라이언트 (멀티코인)
-│       │   ├── garch.py         # 5개 GARCH 모형 서비스
-│       │   └── risk_score.py    # 위험도 점수 산출
-│       └── routers/
-│           ├── price.py         # /api/price 엔드포인트 (멀티코인)
-│           ├── volatility.py    # /api/volatility 엔드포인트 + 정확도 추적
-│           ├── backtest.py      # /api/backtest 엔드포인트
-│           ├── signal.py        # /api/signal 매매 시그널 + 리더보드 + 적중률
-│           ├── briefing.py      # /api/briefing AI 브리핑 (GPT-4o-mini)
-│           ├── portfolio.py     # /api/portfolio Monte Carlo 시뮬레이터
-│           └── ws.py            # /ws/ticks Binance WebSocket 릴레이
-│
-├── frontend/
-│   ├── package.json
-│   └── src/
-│       ├── App.jsx
-│       ├── main.jsx
-│       ├── api/client.js           # Axios API 클라이언트 (11개 함수)
-│       ├── i18n.js                 # 한/영 번역
-│       ├── hooks/
-│       │   └── useRealtimePrice.js # Binance WebSocket 커스텀 훅
-│       ├── components/
-│       │   ├── PriceChart.jsx          # 가격 시계열 차트
-│       │   ├── VolatilityChart.jsx     # 5개 모형 비교 시계열
-│       │   ├── FngGauge.jsx            # FNG 반원형 게이지
-│       │   ├── FngChart.jsx            # FNG 추이 차트
-│       │   ├── SignalCard.jsx          # 매매 시그널 카드
-│       │   ├── SignalAccuracy.jsx      # 시그널 적중률 히스토리
-│       │   ├── Leaderboard.jsx         # 모형 정확도 리더보드
-│       │   ├── AccuracyTracker.jsx     # 예측 정확도 시계열 트래커
-│       │   ├── BacktestPanel.jsx       # 인터랙티브 백테스트
-│       │   ├── PortfolioSimulator.jsx  # Monte Carlo 포트폴리오 시뮬레이터
-│       │   ├── LogReturnsChart.jsx     # 일별 로그수익률
-│       │   ├── RiskScore.jsx           # 위험도 점수
-│       │   ├── ModelTable.jsx          # 모형 예측 상세표
-│       │   ├── ModelExplainer.jsx      # GARCH 모형 인터랙티브 설명
-│       │   ├── AiBriefing.jsx          # AI 시장 브리핑 패널
-│       │   ├── AiMascot.jsx            # 플로팅 AI 마스코트
-│       │   ├── PriceAlert.jsx          # 가격 알림 설정
-│       │   ├── ReportDownload.jsx      # 리포트 다운로드
-│       │   ├── Toast.jsx               # Toast 알림 시스템
-│       │   ├── BottomDock.jsx          # 하단 플로팅 독
-│       │   ├── Sidebar.jsx             # 사이드바 내비게이션
-│       │   ├── ApiLog.jsx              # API 디버그 로그
-│       │   ├── StatCard.jsx            # 통계 카드
-│       │   └── Skeleton.jsx            # 로딩 스켈레톤 UI
-│       └── pages/
-│           └── Dashboard.jsx       # 메인 대시보드 (오케스트레이션)
-│
-└── image/                          # AI 마스코트 이미지 (4종)
-```
+| GET | `/api/backtest?start=...&end=...&coin=BTC` | 기간별 백테스트 성능 지표 |
+| GET | `/api/signal?coin=BTC` | 매매 시그널 |
+| GET | `/api/signal/leaderboard?coin=BTC` | 모형 정확도 리더보드 |
+| GET | `/api/signal/accuracy?coin=BTC` | 시그널 적중률 |
+| GET | `/api/briefing?lang=ko` | AI 시장 브리핑 |
+| POST | `/api/portfolio/simulate` | 포트폴리오 VaR + Monte Carlo |
+| WS | `/ws/ticks` | Binance 실시간 틱 릴레이 |
 
 ---
 
@@ -343,8 +236,99 @@ OPENAI_API_KEY=sk-...    # AI 브리핑용 (선택)
 
 ---
 
+## 통계적 근거
+
+> P학기 팀 프로젝트에서 도출한 분석 결과로, 이 서비스의 모형 선택과 외생변수 활용의 이론적 근거입니다.
+
+<details>
+<summary>사전 검정 및 상관 분석 결과</summary>
+
+### 사전 검정
+
+| 검정 | 목적 | 결과 |
+|------|------|------|
+| ADF 검정 | 시계열 정상성 확인 | 로그수익률 정상 (p < 0.05) |
+| ARCH-LM 검정 | 이분산성 확인 | ARCH 효과 존재 (p < 0.05) |
+| 정규성 검정 | 수익률 분포 확인 | 정규성 기각 → 두터운 꼬리 |
+
+### 상관 분석
+
+| 변수 쌍 | 상관계수 | p-value |
+|---------|---------|---------|
+| BTC ↔ FNG | 0.72 | 2.2e-16 |
+| BTC ↔ KOSPI | -0.03 | 0.98 |
+| BTC ↔ NASDAQ | -0.05 | 0.84 |
+
+### 핵심 발견
+1. **TGARCH 레버리지 효과** (γ = 0.099): 하락 시 변동성이 상승 시보다 약 10% 더 증가
+2. **HAR 구조**: 단기/중기/장기 변동성의 다중 스케일 분석이 예측력 향상
+3. **FNG 지수**: BTC 가격과 유의미한 상관 (r = 0.72) → 외생변수 활용 근거
+
+</details>
+
+---
+
+## 프로젝트 구조
+
+<details>
+<summary>디렉토리 구조</summary>
+
+```
+crypto-volatility-dashboard/
+├── README.md
+├── DEVLOG.md
+├── RETROSPECTIVE.md
+├── .gitignore
+│
+├── backend/
+│   ├── requirements.txt
+│   ├── .env
+│   └── app/
+│       ├── main.py              # FastAPI 앱 + CORS + lifespan + WS 릴레이
+│       ├── config.py            # 환경설정 (pydantic-settings)
+│       ├── database.py          # SQLite + SQLAlchemy
+│       ├── scheduler.py         # APScheduler 일일 데이터 수집 (BTC/ETH/SOL)
+│       ├── models/
+│       │   └── price.py         # coin_daily 테이블 ORM
+│       ├── schemas/
+│       │   └── volatility.py    # Pydantic 응답 모델
+│       ├── services/
+│       │   ├── coingecko.py     # CoinGecko API 클라이언트
+│       │   ├── garch.py         # 5개 GARCH 모형 서비스
+│       │   └── risk_score.py    # 위험도 점수 산출
+│       └── routers/
+│           ├── price.py         # /api/price
+│           ├── volatility.py    # /api/volatility + 정확도 추적
+│           ├── backtest.py      # /api/backtest
+│           ├── signal.py        # /api/signal + 리더보드 + 적중률
+│           ├── briefing.py      # /api/briefing (GPT-4o-mini)
+│           ├── portfolio.py     # /api/portfolio Monte Carlo
+│           └── ws.py            # /ws/ticks Binance WebSocket 릴레이
+│
+├── frontend/
+│   ├── package.json
+│   └── src/
+│       ├── App.jsx
+│       ├── main.jsx
+│       ├── api/client.js
+│       ├── i18n.js
+│       ├── hooks/
+│       │   └── useRealtimePrice.js
+│       ├── components/          # 26개 컴포넌트
+│       └── pages/
+│           └── Dashboard.jsx
+│
+└── image/
+    └── cryptovol/               # 스크린샷 + 데모 GIF
+```
+
+</details>
+
+---
+
 ## 개발자
 
 **윤경은 (Yoon Gyeongeun)**
+- 가천대학교 응용통계학과
 - P학기 팀 프로젝트 참여 → 개인 프로젝트로 확장
 - GitHub: [@ykgstar37-lab](https://github.com/ykgstar37-lab)

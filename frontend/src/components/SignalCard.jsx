@@ -14,12 +14,13 @@ const REASON_COLORS = {
     warning: 'text-orange-500',
 };
 
-export default function SignalCard({ t = {} }) {
+export default function SignalCard({ coin = 'BTC', t = {} }) {
     const [data, setData] = useState(null);
 
     useEffect(() => {
-        fetchSignal().then(setData).catch(() => {});
-    }, []);
+        setData(null);
+        fetchSignal(coin).then(setData).catch(() => {});
+    }, [coin]);
 
     if (!data) return null;
 

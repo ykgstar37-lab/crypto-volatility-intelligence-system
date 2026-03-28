@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 
-export default function PriceAlert({ currentPrice, t = {}, addToast }) {
+export default function PriceAlert({ currentPrice, coin = 'BTC', t = {}, addToast }) {
     const [enabled, setEnabled] = useState(false);
     const [threshold, setThreshold] = useState('');
     const [direction, setDirection] = useState('below');
@@ -15,8 +15,8 @@ export default function PriceAlert({ currentPrice, t = {}, addToast }) {
                 type: 'success',
                 title: lang === 'ko' ? '알림 설정 완료' : 'Alert Set',
                 message: lang === 'ko'
-                    ? `BTC $${Number(threshold).toLocaleString()} ${direction === 'below' ? '이하 하락' : '이상 상승'} 시 알림`
-                    : `Alert when BTC ${direction === 'below' ? 'drops below' : 'rises above'} $${Number(threshold).toLocaleString()}`,
+                    ? `${coin} $${Number(threshold).toLocaleString()} ${direction === 'below' ? '이하 하락' : '이상 상승'} 시 알림`
+                    : `Alert when ${coin} ${direction === 'below' ? 'drops below' : 'rises above'} $${Number(threshold).toLocaleString()}`,
             });
         }
     };
@@ -33,14 +33,14 @@ export default function PriceAlert({ currentPrice, t = {}, addToast }) {
         if (triggered && addToast) {
             addToast({
                 type: 'alert',
-                title: lang === 'ko' ? 'BTC 가격 알림' : 'BTC Price Alert',
+                title: lang === 'ko' ? `${coin} 가격 알림` : `${coin} Price Alert`,
                 message: direction === 'below'
                     ? (lang === 'ko'
-                        ? `BTC가 $${currentPrice.toLocaleString()}로 하락 (기준: $${target.toLocaleString()})`
-                        : `BTC dropped to $${currentPrice.toLocaleString()} (threshold: $${target.toLocaleString()})`)
+                        ? `${coin}가 $${currentPrice.toLocaleString()}로 하락 (기준: $${target.toLocaleString()})`
+                        : `${coin} dropped to $${currentPrice.toLocaleString()} (threshold: $${target.toLocaleString()})`)
                     : (lang === 'ko'
-                        ? `BTC가 $${currentPrice.toLocaleString()}로 상승 (기준: $${target.toLocaleString()})`
-                        : `BTC rose to $${currentPrice.toLocaleString()} (threshold: $${target.toLocaleString()})`),
+                        ? `${coin}가 $${currentPrice.toLocaleString()}로 상승 (기준: $${target.toLocaleString()})`
+                        : `${coin} rose to $${currentPrice.toLocaleString()} (threshold: $${target.toLocaleString()})`),
                 duration: 8000,
             });
         }
@@ -52,10 +52,10 @@ export default function PriceAlert({ currentPrice, t = {}, addToast }) {
         if (addToast) {
             addToast({
                 type: 'alert',
-                title: lang === 'ko' ? 'BTC 가격 알림 (테스트)' : 'BTC Price Alert (Test)',
+                title: lang === 'ko' ? `${coin} 가격 알림 (테스트)` : `${coin} Price Alert (Test)`,
                 message: lang === 'ko'
-                    ? `BTC $${(currentPrice || 87445).toLocaleString()} → 설정 가격 $${Number(threshold || 65000).toLocaleString()} ${direction === 'below' ? '하락 돌파' : '상승 돌파'}`
-                    : `BTC $${(currentPrice || 87445).toLocaleString()} → crossed $${Number(threshold || 65000).toLocaleString()} ${direction === 'below' ? 'downward' : 'upward'}`,
+                    ? `${coin} $${(currentPrice || 87445).toLocaleString()} → 설정 가격 $${Number(threshold || 65000).toLocaleString()} ${direction === 'below' ? '하락 돌파' : '상승 돌파'}`
+                    : `${coin} $${(currentPrice || 87445).toLocaleString()} → crossed $${Number(threshold || 65000).toLocaleString()} ${direction === 'below' ? 'downward' : 'upward'}`,
                 duration: 6000,
             });
         }

@@ -1,4 +1,5 @@
 import math
+import time
 import warnings
 
 import numpy as np
@@ -11,6 +12,22 @@ warnings.filterwarnings("ignore")
 MODEL_NAMES = ["GARCH(1,1)", "TGARCH", "HAR-GARCH", "HAR-TGARCH", "HAR-TGARCH-X"]
 
 _model_cache: dict[str, float] = {}
+
+# Time-based result cache: key -> (timestamp, result)
+_result_cache: dict[str, tuple[float, object]] = {}
+_CACHE_TTL = 300  # 5 minutes
+
+
+def _cache_get(key: str):
+    if key in _result_cache:
+        ts, result = _result_cache[key]
+        if time.time() - ts < _CACHE_TTL:
+            return result
+    return None
+
+
+def _cache_set(key: str, result):
+    _result_cache[key] = (time.time(), result)
 
 
 def _compute_har_features(returns: pd.Series) -> pd.DataFrame:

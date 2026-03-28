@@ -2,23 +2,23 @@ import math
 
 import numpy as np
 import pandas as pd
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.price import CoinDaily
-from app.services.garch import fit_garch, fit_tgarch, fit_har_garch
+from app.services.garch import fit_garch, fit_tgarch, fit_har_garch, _cache_get, _cache_set
 
 router = APIRouter(prefix="/api/signal", tags=["signal"])
 
 
 @router.get("")
-def get_signal(db: Session = Depends(get_db)):
+def get_signal(coin: str = Query(default="BTC", pattern="^(BTC|ETH|SOL)$"), db: Session = Depends(get_db)):
     """Generate trading signal based on FNG + volatility trend."""
     rows = (
         db.query(CoinDaily)
-        .filter(CoinDaily.symbol == "BTC")
+        .filter(CoinDaily.symbol == coin)
         .order_by(desc(CoinDaily.date))
         .limit(90)
         .all()
@@ -98,11 +98,16 @@ def get_signal(db: Session = Depends(get_db)):
 
 
 @router.get("/leaderboard")
-def model_leaderboard(db: Session = Depends(get_db)):
+def model_leaderboard(coin: str = Query(default="BTC", pattern="^(BTC|ETH|SOL)$"), db: Session = Depends(get_db)):
     """Rank models by prediction accuracy over last 30 days."""
+    cache_key = f"leaderboard:{coin}"
+    cached = _cache_get(cache_key)
+    if cached:
+        return cached
+
     rows = (
         db.query(CoinDaily)
-        .filter(CoinDaily.symbol == "BTC")
+        .filter(CoinDaily.symbol == coin)
         .order_by(desc(CoinDaily.date))
         .limit(90)
         .all()
@@ -145,15 +150,16 @@ def model_leaderboard(db: Session = Depends(get_db)):
     for i, r in enumerate(results):
         r["rank"] = i + 1
 
+    _cache_set(cache_key, results)
     return results
 
 
 @router.get("/accuracy")
-def signal_accuracy(db: Session = Depends(get_db)):
+def signal_accuracy(coin: str = Query(default="BTC", pattern="^(BTC|ETH|SOL)$"), db: Session = Depends(get_db)):
     """Calculate historical signal accuracy over last 60 days."""
     rows = (
         db.query(CoinDaily)
-        .filter(CoinDaily.symbol == "BTC")
+        .filter(CoinDaily.symbol == coin)
         .order_by(desc(CoinDaily.date))
         .limit(90)
         .all()

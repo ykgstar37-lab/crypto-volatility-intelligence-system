@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.price import CoinDaily
 from app.schemas.volatility import ModelPrediction, VolatilityPredict
-from app.services.garch import predict_all, fit_garch, fit_tgarch, fit_har_garch, fit_har_tgarch
+from app.services.garch import predict_all, fit_garch, fit_tgarch, fit_har_garch, fit_har_tgarch, _cache_get, _cache_set
 from app.services.risk_score import compute_risk_score
 
 router = APIRouter(prefix="/api/volatility", tags=["volatility"])
@@ -45,6 +45,11 @@ def volatility_predict(
     coin: str = Query(default="BTC", pattern="^(BTC|ETH|SOL)$"),
     db: Session = Depends(get_db),
 ):
+    cache_key = f"predict:{coin}"
+    cached = _cache_get(cache_key)
+    if cached:
+        return cached
+
     returns, volume, fng = _load_series(db, symbol=coin)
     if returns is None or len(returns) < 60:
         return VolatilityPredict(predictions=[], risk_score=0, risk_label="N/A")
@@ -52,11 +57,13 @@ def volatility_predict(
     preds = predict_all(returns, volume, fng)
     score, label = compute_risk_score(preds)
 
-    return VolatilityPredict(
+    result = VolatilityPredict(
         predictions=[ModelPrediction(**p) for p in preds],
         risk_score=score,
         risk_label=label,
     )
+    _cache_set(cache_key, result)
+    return result
 
 
 @router.get("/compare")
@@ -66,6 +73,11 @@ def volatility_compare(
     db: Session = Depends(get_db),
 ):
     """Return daily rolling volatility predictions for all 5 models."""
+    cache_key = f"compare:{coin}:{days}"
+    cached = _cache_get(cache_key)
+    if cached:
+        return cached
+
     total_needed = days + WINDOW + 30
     rows = (
         db.query(CoinDaily)
@@ -117,6 +129,7 @@ def volatility_compare(
 
         results.append(row_data)
 
+    _cache_set(cache_key, results)
     return results
 
 
@@ -127,6 +140,11 @@ def volatility_accuracy(
     db: Session = Depends(get_db),
 ):
     """Track cumulative prediction accuracy: predicted vs realized volatility per model."""
+    cache_key = f"accuracy:{coin}:{days}"
+    cached = _cache_get(cache_key)
+    if cached:
+        return cached
+
     total_needed = days + WINDOW + 30
     rows = (
         db.query(CoinDaily)
@@ -194,4 +212,6 @@ def volatility_accuracy(
     for i, m in enumerate(models_summary):
         m["rank"] = i + 1
 
-    return {"models": models_summary, "daily": daily}
+    result = {"models": models_summary, "daily": daily}
+    _cache_set(cache_key, result)
+    return result

@@ -3,12 +3,13 @@ import { fetchLeaderboard } from '../api/client';
 
 const MEDAL = ['🥇', '🥈', '🥉'];
 
-export default function Leaderboard({ t = {} }) {
+export default function Leaderboard({ coin = 'BTC', t = {} }) {
     const [data, setData] = useState([]);
 
     useEffect(() => {
-        fetchLeaderboard().then(setData).catch(() => {});
-    }, []);
+        setData([]);
+        fetchLeaderboard(coin).then(setData).catch(() => {});
+    }, [coin]);
 
     if (!data.length) return null;
 

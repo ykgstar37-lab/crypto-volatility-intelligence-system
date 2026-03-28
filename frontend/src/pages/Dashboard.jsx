@@ -76,18 +76,20 @@ export default function Dashboard() {
     const load = async (days = 365, selectedCoin = coin) => {
         try {
             setLoading(true);
-            addLog(setLogs, 'info', `Fetching /api/price/current?coin=${selectedCoin}...`);
-            const priceData = await fetchCurrentPrice(selectedCoin);
+            addLog(setLogs, 'info', `Fetching ${selectedCoin} data (parallel)...`);
+
+            const [priceData, historyData, volData] = await Promise.all([
+                fetchCurrentPrice(selectedCoin),
+                fetchPriceHistory(days, selectedCoin),
+                fetchVolatilityPredict(selectedCoin),
+            ]);
+
             addLog(setLogs, 'success', `${selectedCoin} Price: $${priceData.price.toLocaleString()}`, `FNG: ${priceData.fng}`);
             setPrice(priceData);
 
-            addLog(setLogs, 'info', `Fetching /api/price/history?coin=${selectedCoin}&days=${days}...`);
-            const historyData = await fetchPriceHistory(days, selectedCoin);
             addLog(setLogs, 'success', `Loaded ${historyData.length} data points`);
             setHistory(historyData);
 
-            addLog(setLogs, 'info', `Fetching /api/volatility/predict?coin=${selectedCoin}...`);
-            const volData = await fetchVolatilityPredict(selectedCoin);
             addLog(setLogs, 'success', `${volData.predictions.length} models predicted`, `Risk: ${volData.risk_score.toFixed(1)} (${volData.risk_label})`);
             setVolatility(volData);
 
@@ -122,7 +124,7 @@ export default function Dashboard() {
             }
         }, wsConnected ? 300000 : 60000);
         return () => clearInterval(interval);
-    }, [wsConnected]);
+    }, [wsConnected, coin]);
 
     // Scroll spy
     useEffect(() => {
@@ -238,9 +240,21 @@ export default function Dashboard() {
             {/* Content */}
             <main className="lg:pl-56">
                 <div className="max-w-[1200px] mx-auto px-6 py-8">
+                    {/* Loading overlay for coin switch */}
+                    {loading && price && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/60 backdrop-blur-sm">
+                            <div className="flex flex-col items-center gap-3">
+                                <div className="w-10 h-10 border-3 border-gray-200 border-t-[#2b4fcb] rounded-full animate-spin"></div>
+                                <p className="text-sm font-semibold text-gray-500">{currentCoin.name} {lang === 'ko' ? '데이터 로딩 중...' : 'Loading...'}</p>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Title */}
                     <div id="dashboard" className="mb-8">
-                        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{t.title}</h1>
+                        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
+                            {lang === 'ko' ? `실시간 ${currentCoin.name} 변동성 대시보드` : `Real-Time ${currentCoin.name} Volatility Dashboard`}
+                        </h1>
                         <p className="text-sm text-gray-400 mt-1">{t.subtitle}</p>
                     </div>
 
@@ -274,20 +288,20 @@ export default function Dashboard() {
                     {/* Row 1: Price Chart + FNG Gauge */}
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
                         <div className="lg:col-span-2">
-                            <PriceChart data={history} onPeriodChange={handlePeriodChange} t={t} />
+                            <PriceChart data={history} onPeriodChange={handlePeriodChange} t={t} coinName={currentCoin.name} livePrice={liveCoinPrice} />
                         </div>
                         <FngGauge value={price?.fng || 50} label={price?.fng_label || 'Neutral'} t={t} />
                     </div>
 
                     {/* Row 2: Signal + Leaderboard */}
                     <div id="signal" className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                        <SignalCard t={t} />
-                        <Leaderboard t={t} />
+                        <SignalCard coin={coin} t={t} />
+                        <Leaderboard coin={coin} t={t} />
                     </div>
 
                     {/* Row 2.5: Accuracy + ETH + Alert + Report */}
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                        <SignalAccuracy t={t} />
+                        <SignalAccuracy coin={coin} t={t} />
                         <StatCard
                             label="Ethereum"
                             value={liveEthPrice ? `$${liveEthPrice.usd?.toLocaleString()}` : '—'}
@@ -295,13 +309,13 @@ export default function Dashboard() {
                             sub={wsConnected ? 'LIVE' : 'ETH'}
                             icon="Ξ"
                         />
-                        <PriceAlert currentPrice={liveCoinPrice} t={t} addToast={addToast} />
+                        <PriceAlert currentPrice={liveCoinPrice} coin={coin} t={t} addToast={addToast} />
                         <ReportDownload price={price} volatility={volatility} t={t} />
                     </div>
 
                     {/* Row 3: Volatility (full width) */}
                     <div id="models" className="mb-6">
-                        <VolatilityChart t={t} />
+                        <VolatilityChart coin={coin} t={t} />
                     </div>
 
                     {/* Row 3.5: Accuracy Tracker */}
@@ -330,7 +344,7 @@ export default function Dashboard() {
 
                     {/* Row 6: Backtest */}
                     <div id="backtest" className="mb-6">
-                        <BacktestPanel t={t} />
+                        <BacktestPanel coin={coin} t={t} />
                     </div>
 
                     {/* Row 7: API Log */}
