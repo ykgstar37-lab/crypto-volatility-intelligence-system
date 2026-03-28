@@ -5,6 +5,7 @@ __pycache__/
 .env
 data/
 *.db
+.pytest_cache/
 node_modules/
 dist/
 .vite/

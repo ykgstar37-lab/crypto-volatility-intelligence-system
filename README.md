@@ -1,5 +1,7 @@
 # CryptoVol Dashboard
 
+[![CI](https://github.com/ykgstar37-lab/crypto-volatility-intelligence-system/actions/workflows/ci.yml/badge.svg)](https://github.com/ykgstar37-lab/crypto-volatility-intelligence-system/actions/workflows/ci.yml)
+
 > **GARCH 변동성 모형을 실시간 웹 서비스로 전환한 멀티코인 변동성 예측 대시보드**
 
 ![메인 대시보드](image/cryptovol/cryptovol-main.png)
