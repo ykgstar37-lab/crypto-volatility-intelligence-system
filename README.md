@@ -3,6 +3,8 @@
 [![CI](https://github.com/ykgstar37-lab/crypto-volatility-intelligence-system/actions/workflows/ci.yml/badge.svg)](https://github.com/ykgstar37-lab/crypto-volatility-intelligence-system/actions/workflows/ci.yml)
 
 > **GARCH 변동성 모형을 실시간 웹 서비스로 전환한 멀티코인 변동성 예측 대시보드**
+>
+> *A real-time multi-coin volatility forecasting dashboard powered by GARCH models, Monte Carlo simulation, and AI market briefing.*
 
 ![메인 대시보드](image/cryptovol/cryptovol-main.png)
 
@@ -172,7 +174,8 @@ OpenAI API ───────────→├── GARCH Models     ├─
 ```bash
 cd backend
 python -m venv venv
-venv/Scripts/activate   # Windows
+source venv/bin/activate      # Mac / Linux
+venv\Scripts\activate         # Windows
 pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
@@ -187,11 +190,17 @@ npm install
 npm run dev
 ```
 
-### 환경 변수 (.env)
+### 환경 변수
+
+`backend/.env.example`을 복사하여 `backend/.env`를 생성합니다.
+
+```bash
+cp backend/.env.example backend/.env
+```
 
 ```
 DATABASE_URL=sqlite:///./data/crypto.db
-CORS_ORIGINS=http://localhost:5173
+CORS_ORIGINS=http://localhost:5173,http://localhost:3000
 OPENAI_API_KEY=sk-...    # AI 브리핑용 (선택)
 ```
 
@@ -264,7 +273,7 @@ crypto-volatility-dashboard/
 │
 ├── backend/
 │   ├── requirements.txt
-│   ├── .env
+│   ├── .env.example
 │   └── app/
 │       ├── main.py              # FastAPI 앱 + CORS + lifespan + WS 릴레이
 │       ├── config.py            # 환경설정 (pydantic-settings)
@@ -308,9 +317,23 @@ crypto-volatility-dashboard/
 
 ---
 
+## 회고
+
+Jupyter 분석을 실시간 서비스로 전환하면서 **분석 코드와 서비스 코드의 차이**를 체감했습니다.
+
+- GARCH 적합 시간, 예외 전파, 동시 요청 등 Notebook에서는 고려하지 않았던 문제들을 해결
+- WebSocket 연결 수명주기와 상태 관리라는 REST와 다른 사고방식을 경험
+- 5개 모형이 동시에 틀리는 상황을 보며, 모형의 한계를 투명하게 보여주는 것도 설계라는 점을 학습
+- 테스트·캐싱·CI 등 프로덕션 품질에 도달하기 위해 필요한 영역이 명확해짐
+
+> 상세 회고는 [RETROSPECTIVE.md](RETROSPECTIVE.md)를 참고해 주세요.
+
+---
+
 ## 개발자
 
 **윤경은 (Yoon Gyeongeun)**
 - 가천대학교 응용통계학과
 - P학기 팀 프로젝트 참여 → 개인 프로젝트로 확장
 - GitHub: [@ykgstar37-lab](https://github.com/ykgstar37-lab)
+- Email: yge0307@gmail.com
