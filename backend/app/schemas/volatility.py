@@ -56,3 +56,21 @@ class BacktestResult(BaseModel):
     start: date
     end: date
     models: list[BacktestMetric]
+
+
+class FactorCorrelation(BaseModel):
+    """외생변수와 비트코인 지표 간 상관관계 (논문 §4.2 재검증용)."""
+    factor: str
+    target: str
+    pearson_r: float
+    p_value: float
+    significant: bool
+    n: int
+
+
+class FactorCorrelationResult(BaseModel):
+    coin: str
+    period_start: date
+    period_end: date
+    n_days: int
+    correlations: list[FactorCorrelation]

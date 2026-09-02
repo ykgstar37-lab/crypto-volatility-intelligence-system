@@ -1,4 +1,5 @@
 import math
+from datetime import date
 
 import numpy as np
 import pandas as pd
@@ -8,9 +9,15 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.price import CoinDaily
-from app.schemas.volatility import ModelPrediction, VolatilityPredict
+from app.schemas.volatility import (
+    FactorCorrelation,
+    FactorCorrelationResult,
+    ModelPrediction,
+    VolatilityPredict,
+)
 from app.services.garch import predict_all, fit_garch, fit_tgarch, fit_har_garch, fit_har_tgarch, _cache_get, _cache_set
 from app.services.risk_score import compute_risk_score
+from scipy.stats import pearsonr
 
 router = APIRouter(prefix="/api/volatility", tags=["volatility"])
 
@@ -212,5 +219,83 @@ def volatility_accuracy(
         m["rank"] = i + 1
 
     result = {"models": models_summary, "daily": daily}
+    _cache_set(cache_key, result)
+    return result
+
+
+@router.get("/factors", response_model=FactorCorrelationResult)
+def factor_correlations(
+    coin: str = Query(default="BTC", pattern="^(BTC|ETH|SOL)$"),
+    days: int = Query(default=365, ge=60, le=2000),
+    db: Session = Depends(get_db),
+):
+    """외생변수가 변동성과 실제로 연관되는지 현재 데이터로 다시 계산한다.
+
+    2023년 논문은 FNG-수익률 상관이 0.72(p=2.2e-16)라고 서술했으나 이를
+    뒷받침하는 표가 유실되어 인용만으로는 검증할 수 없다. 여기서는 DB에
+    적재된 실제 데이터로 매번 다시 계산해 값 자체를 산출한다.
+    """
+    cache_key = f"factors:{coin}:{days}"
+    cached = _cache_get(cache_key)
+    if cached:
+        return cached
+
+    rows = (
+        db.query(CoinDaily)
+        .filter(CoinDaily.symbol == coin)
+        .order_by(desc(CoinDaily.date))
+        .limit(days)
+        .all()
+    )
+    rows.reverse()
+    if len(rows) < 60:
+        return FactorCorrelationResult(
+            coin=coin, period_start=date.today(), period_end=date.today(),
+            n_days=len(rows), correlations=[],
+        )
+
+    df = pd.DataFrame([
+        {"date": r.date, "close": r.close, "volume": r.volume,
+         "fng": r.fng, "log_return": r.log_return}
+        for r in rows
+    ]).set_index("date")
+
+    df["abs_return"] = df["log_return"].abs()      # 변동성 대리변수
+    df["realized_vol"] = df["log_return"].rolling(7).std()
+
+    pairs = [
+        ("FNG", "log_return"),      # 논문이 0.72로 서술한 조합
+        ("FNG", "abs_return"),
+        ("FNG", "realized_vol"),
+        ("Volume", "abs_return"),
+        ("Volume", "realized_vol"),
+    ]
+    col = {"FNG": "fng", "Volume": "volume"}
+
+    correlations = []
+    for factor, target in pairs:
+        sub = df[[col[factor], target]].dropna()
+        if len(sub) < 30:
+            continue
+        x = sub[col[factor]].astype(float).values
+        y = sub[target].astype(float).values
+        if x.std() == 0 or y.std() == 0:
+            continue
+        r, p = pearsonr(x, y)
+        correlations.append(FactorCorrelation(
+            factor=factor, target=target,
+            pearson_r=round(float(r), 4),
+            p_value=float(p),
+            significant=bool(p < 0.05),
+            n=len(sub),
+        ))
+
+    result = FactorCorrelationResult(
+        coin=coin,
+        period_start=df.index[0],
+        period_end=df.index[-1],
+        n_days=len(df),
+        correlations=correlations,
+    )
     _cache_set(cache_key, result)
     return result

@@ -10,6 +10,7 @@ from app.services.garch import (
     fit_tgarch,
     fit_har_garch,
     fit_har_tgarch_x,
+    MODEL_NAMES,
     predict_all,
     _cache_get,
     _cache_set,
@@ -47,16 +48,15 @@ class TestGarchFitting:
 
 
 class TestPredictAll:
-    def test_predict_all_returns_5_models(self, synthetic_returns):
-        import pandas as pd
-
+    def test_predict_all_returns_every_model(self, synthetic_returns):
         idx = pd.date_range("2025-01-01", periods=len(synthetic_returns))
         returns = pd.Series(synthetic_returns, index=idx)
         volume = pd.Series(np.random.rand(len(synthetic_returns)), index=idx)
         fng = pd.Series(np.random.randint(10, 90, len(synthetic_returns)), index=idx)
 
         results = predict_all(returns, volume, fng)
-        assert len(results) == 5
+        # MODEL_NAMES와 동기화 — 모형을 추가하면 이 테스트가 자동으로 따라간다
+        assert [r["model"] for r in results] == MODEL_NAMES
         model_names = {r["model"] for r in results}
         assert "GARCH(1,1)" in model_names
         assert "TGARCH" in model_names

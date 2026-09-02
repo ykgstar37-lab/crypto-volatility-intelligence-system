@@ -9,7 +9,14 @@ from scipy.stats import norm
 
 warnings.filterwarnings("ignore")
 
-MODEL_NAMES = ["GARCH(1,1)", "TGARCH", "HAR-GARCH", "HAR-TGARCH", "HAR-TGARCH-X"]
+MODEL_NAMES = [
+    "GARCH(1,1)",
+    "TGARCH",
+    "GARCH+E.V",
+    "HAR-GARCH",
+    "HAR-TGARCH",
+    "HAR-TGARCH-X",
+]
 
 _model_cache: dict[str, float] = {}
 
@@ -58,6 +65,47 @@ def fit_tgarch(returns: np.ndarray) -> float:
     model = arch_model(r, vol="Garch", p=1, o=1, q=1, dist="t", rescale=False)
     res = model.fit(disp="off", show_warning=False)
     forecast = res.forecast(horizon=1)
+    sigma2 = forecast.variance.values[-1, 0]
+    return math.sqrt(sigma2) / 100
+
+
+def fit_garch_x(returns: pd.Series, volume: pd.Series, fng: pd.Series) -> float:
+    """GARCH+E.V — GARCH(1,1)에 외생변수(거래량, FNG)를 추가한 모형.
+
+    2023년 논문 Table 7에서 이 행은 공란이었다(원자료 유실). 여기서 실제
+    추정치를 산출한다.
+
+    주의 — 논문 §3.1은 외생변수를 분산식에 넣는다:
+        sigma_t^2 = a0 + a1*r_{t-1}^2 + b1*sigma_{t-1}^2 + c1*x_t
+    그러나 arch 패키지의 표준 변동성 프로세스는 분산식 외생변수를 받지
+    못한다. 여기서는 HAR-TGARCH-X와 동일하게 평균식(mean="LS")에 넣는다.
+    논문 수식 그대로 구현하려면 custom volatility process가 필요하다.
+    """
+    aligned = pd.DataFrame({
+        "r": returns,
+        "vol_lag": volume.reindex(returns.index).ffill().shift(1),
+        "fng_lag": fng.reindex(returns.index).ffill().shift(1),
+    }).dropna()
+
+    if len(aligned) < 60:
+        return 0.0
+
+    r = (aligned["r"] * 100).values
+    exog = np.column_stack([
+        _rescale(aligned["vol_lag"].values.astype(float)),
+        _rescale(aligned["fng_lag"].values.astype(float)),
+    ])
+    if not np.isfinite(exog).all():
+        return 0.0
+
+    model = arch_model(
+        r, x=exog, mean="LS", vol="Garch", p=1, q=1, dist="t", rescale=False
+    )
+    res = model.fit(disp="off", show_warning=False)
+
+    n_exog = exog.shape[1]
+    last_exog = np.tile(exog[-1].reshape(n_exog, 1, 1), (1, len(r), 1))
+    forecast = res.forecast(horizon=1, x=last_exog, reindex=False)
     sigma2 = forecast.variance.values[-1, 0]
     return math.sqrt(sigma2) / 100
 
@@ -152,7 +200,7 @@ def fit_har_tgarch_x(returns: pd.Series, volume: pd.Series, fng: pd.Series) -> f
 
 
 def predict_all(returns: pd.Series, volume: pd.Series | None = None, fng: pd.Series | None = None) -> list[dict]:
-    """Run all 5 models and return predictions."""
+    """Run all 6 models and return predictions."""
     r_np = returns.values
 
     results = []
@@ -171,17 +219,23 @@ def predict_all(returns: pd.Series, volume: pd.Series | None = None, fng: pd.Ser
         except Exception as e:
             results.append({"model": name, "sigma": 0.0, "annualized_vol": 0.0, "status": "error", "error": str(e)})
 
-    # HAR-TGARCH-X needs volume and FNG
-    try:
-        if volume is not None and fng is not None:
-            sigma = fit_har_tgarch_x(returns, volume, fng)
-        else:
-            sigma = 0.0
-        ann = sigma * math.sqrt(365)
-        status = "ok" if sigma > 0 else "no_data"
-        results.append({"model": "HAR-TGARCH-X", "sigma": round(sigma, 6), "annualized_vol": round(ann, 4), "status": status})
-    except Exception as e:
-        results.append({"model": "HAR-TGARCH-X", "sigma": 0.0, "annualized_vol": 0.0, "status": "error", "error": str(e)})
+    # 외생변수(거래량, FNG)가 필요한 모형들
+    exog_fitters = [
+        ("GARCH+E.V", fit_garch_x),
+        ("HAR-TGARCH-X", fit_har_tgarch_x),
+    ]
+    for name, fn in exog_fitters:
+        try:
+            sigma = fn(returns, volume, fng) if volume is not None and fng is not None else 0.0
+            ann = sigma * math.sqrt(365)
+            status = "ok" if sigma > 0 else "no_data"
+            results.append({"model": name, "sigma": round(sigma, 6), "annualized_vol": round(ann, 4), "status": status})
+        except Exception as e:
+            results.append({"model": name, "sigma": 0.0, "annualized_vol": 0.0, "status": "error", "error": str(e)})
+
+    # 논문의 전개 순서(GARCH → TGARCH → +외생변수 → HAR 계열)로 정렬한다.
+    order = {name: i for i, name in enumerate(MODEL_NAMES)}
+    results.sort(key=lambda r: order.get(r["model"], len(order)))
 
     # Cache results
     for r in results:
