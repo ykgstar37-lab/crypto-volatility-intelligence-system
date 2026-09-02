@@ -26,6 +26,10 @@ services:
       # Vercel preview 도메인 정규식. 예: https://cryptovol-.*\.vercel\.app
       - key: CORS_ORIGIN_REGEX
         sync: false
+      # CoinGecko Demo API key. 무료지만 배포 환경에서는 사실상 필수 —
+      # 키 없이 IP 기반 쿼터를 쓰면 클라우드 공용 IP가 차단되어 백필이 실패한다.
+      - key: COINGECKO_API_KEY
+        sync: false
       # AI 브리핑용(선택). 미설정 시 브리핑 엔드포인트가 안내 메시지로 폴백한다.
       - key: OPENAI_API_KEY
         sync: false

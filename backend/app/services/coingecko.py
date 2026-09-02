@@ -1,11 +1,19 @@
 import asyncio
+import logging
 from datetime import datetime, date
 
 import httpx
 
 from app.config import settings
 
+logger = logging.getLogger(__name__)
+
 _semaphore = asyncio.Semaphore(5)
+
+# CoinGecko 무료 API는 데이터센터 IP(클라우드 PaaS)를 공격적으로 rate-limit 한다.
+# 로컬에서는 통과하던 요청이 배포 환경에서 429/403으로 막히므로 재시도가 필요하다.
+_MAX_RETRIES = 4
+_RETRY_STATUS = {403, 408, 429, 500, 502, 503, 504}
 
 # CoinGecko ID mapping
 COIN_IDS = {
@@ -15,12 +23,47 @@ COIN_IDS = {
 }
 
 
+def _headers(url: str) -> dict:
+    """Demo API key를 붙이면 IP 기반이 아닌 키 기반 쿼터를 사용한다."""
+    if settings.coingecko_api_key and url.startswith(settings.coingecko_base_url):
+        return {"x-cg-demo-api-key": settings.coingecko_api_key}
+    return {}
+
+
 async def _get(url: str, params: dict | None = None) -> dict:
-    async with _semaphore:
-        async with httpx.AsyncClient(timeout=30) as client:
-            resp = await client.get(url, params=params)
-            resp.raise_for_status()
-            return resp.json()
+    """GET with exponential backoff on rate limiting / transient errors."""
+    backoff = 2
+    last_exc: Exception | None = None
+
+    for attempt in range(1, _MAX_RETRIES + 1):
+        async with _semaphore:
+            try:
+                async with httpx.AsyncClient(timeout=30) as client:
+                    resp = await client.get(url, params=params, headers=_headers(url))
+                    if resp.status_code in _RETRY_STATUS and attempt < _MAX_RETRIES:
+                        logger.warning(
+                            f"{url} -> HTTP {resp.status_code} "
+                            f"(attempt {attempt}/{_MAX_RETRIES}), retrying in {backoff}s"
+                        )
+                        last_exc = httpx.HTTPStatusError(
+                            f"HTTP {resp.status_code}", request=resp.request, response=resp
+                        )
+                    else:
+                        resp.raise_for_status()
+                        return resp.json()
+            except (httpx.TransportError, httpx.TimeoutException) as e:
+                if attempt >= _MAX_RETRIES:
+                    raise
+                logger.warning(
+                    f"{url} -> {type(e).__name__} "
+                    f"(attempt {attempt}/{_MAX_RETRIES}), retrying in {backoff}s"
+                )
+                last_exc = e
+
+        await asyncio.sleep(backoff)
+        backoff *= 2
+
+    raise last_exc if last_exc else RuntimeError(f"{url}: exhausted retries")
 
 
 async def get_current_price(symbol: str = "BTC") -> dict:

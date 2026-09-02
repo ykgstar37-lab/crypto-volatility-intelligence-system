@@ -452,7 +452,10 @@ alembic revision --autogenerate -m "변경 설명"  # 새 마이그레이션 생
 | `DATABASE_URL` | Neon/Supabase 등 외부 PostgreSQL 연결 문자열 |
 | `CORS_ORIGINS` | Vercel 프로덕션 도메인 |
 | `CORS_ORIGIN_REGEX` | `https://cryptovol-.*\.vercel\.app` (preview 배포 허용, 선택) |
+| `COINGECKO_API_KEY` | CoinGecko Demo 키 — 무료지만 배포 환경에서는 사실상 필수 |
 | `OPENAI_API_KEY` | AI 브리핑용 (선택) |
+
+> **CoinGecko 키가 왜 필요한가** — 무료 API는 IP 기반으로 쿼터를 매기는데, 클라우드 PaaS의 공용 IP는 차단되거나 강하게 rate-limit 됩니다. 로컬에서 잘 되던 백필이 배포 후 `no_data`로 끝나는 원인이 이것입니다. [개발자 대시보드](https://www.coingecko.com/en/developers/dashboard)에서 무료로 발급받아 넣으면 키 기반 쿼터로 전환됩니다.
 
 > **무료 플랜 주의** — persistent disk가 없어 SQLite는 재시작마다 소실되므로 외부 PostgreSQL이 필요합니다. 또한 15분 유휴 시 슬립되며, 깨어날 때 365일 백필이 다시 실행되고 WebSocket 연결이 끊깁니다.
 

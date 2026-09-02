@@ -18,7 +18,9 @@ config = context.config
 # Override sqlalchemy.url from app settings (env var takes priority)
 config.set_main_option("sqlalchemy.url", settings.database_url)
 
-if config.config_file_name is not None:
+# alembic.ini의 [logger_root] level=WARNING이 애플리케이션 로깅 설정을 덮어쓴다.
+# 앱이 init_db()로 마이그레이션을 실행할 때는 configure_logger=False로 건너뛴다.
+if config.config_file_name is not None and config.attributes.get("configure_logger", True):
     fileConfig(config.config_file_name)
 
 target_metadata = Base.metadata
