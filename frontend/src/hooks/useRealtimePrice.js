@@ -1,6 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
-const WS_BASE = import.meta.env.VITE_WS_URL || `ws://${window.location.host}`;
+// HTTPS 페이지에서 ws://로 WebSocket을 만들면 브라우저가 SecurityError를 던진다.
+// 그 예외가 렌더 중에 발생하면 대시보드 전체가 언마운트되어 흰 화면이 되므로,
+// 페이지 프로토콜에 맞춰 스킴을 고른 뒤 생성 자체도 try/catch로 감싼다.
+const WS_BASE =
+    import.meta.env.VITE_WS_URL ||
+    `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}`;
 
 /**
  * useRealtimePrice — WebSocket hook for Binance real-time ticks via backend relay.
@@ -22,7 +27,16 @@ export default function useRealtimePrice(addLog) {
         if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
         const url = `${WS_BASE}/ws/ticks`;
-        const ws = new WebSocket(url);
+
+        let ws;
+        try {
+            ws = new WebSocket(url);
+        } catch (e) {
+            // 잘못된 스킴/주소여도 실시간 시세만 포기하고 대시보드는 살린다.
+            setConnected(false);
+            if (addLog) addLog('error', `WebSocket 연결 실패 (${url}): ${e.message}`);
+            return;
+        }
         wsRef.current = ws;
 
         ws.onopen = () => {
