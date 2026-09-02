@@ -8,6 +8,16 @@
 
 ![메인 대시보드](image/cryptovol/cryptovol-main.png)
 
+**출발점** — 이 프로젝트는 2023년 학술제 논문 *「암호화폐 변동성 비교 및 분석: GARCH 모델 기반 예측」*(3인 팀)에서
+시작했습니다. 그 논문은 결론부에 두 가지를 한계로 적었습니다.
+
+> "HAR-TGARCH-X와 같은 더 복잡한 결합 모형의 완전한 구현이 이루어지지 못한 점이 있다.
+> 향후 연구에서는 … **실시간 예측 시스템으로의 발전을 모색할 필요가 있다.**"
+
+이 저장소는 그 두 문장에 대한 답입니다. 논문이 공란으로 남긴 모형을 실제로 적합하고,
+정적 분석을 상시 서빙되는 API로 옮겼습니다.
+전문과 2026년 재현 부록은 [`docs/paper/`](docs/paper/)에 있습니다.
+
 ---
 
 ## 프로젝트 배경
@@ -37,7 +47,7 @@ P학기(통계 실무 프로젝트)에서 팀으로 비트코인 변동성을 GA
 
 ### 1. GARCH 모형 실시간 API 서빙
 
-5개 GARCH 모형(GARCH, TGARCH, HAR-GARCH, HAR-TGARCH, HAR-TGARCH-X)으로 변동성을 예측합니다.
+6개 GARCH 모형(GARCH, TGARCH, GARCH+E.V, HAR-GARCH, HAR-TGARCH, HAR-TGARCH-X)으로 변동성을 예측합니다.
 
 | 모형 | 특징 |
 |------|------|
@@ -50,7 +60,7 @@ P학기(통계 실무 프로젝트)에서 팀으로 비트코인 변동성을 GA
 **기술적 결정**: Jupyter에서 수동 실행하던 모형을 API 요청마다 적합(fit)해야 했습니다. `arch` 라이브러리의 적합은 수십~수백ms가 걸리므로, 인메모리 캐싱으로 반복 호출을 방지하고 120일 윈도우로 입력을 제한했습니다. HAR-TGARCH-X는 Volume/FNG을 `arch_model(x=exog)`로 mean equation에 실제 전달하며, 개별 모형 실패 시 `status: "error"` 응답으로 실패 원인을 투명하게 노출합니다.
 
 ![FNG + 변동성 비교](image/cryptovol/cryptovol-fng.png)
-*Fear & Greed Index 게이지 및 추이 차트, 5개 GARCH 모형 변동성 비교*
+*Fear & Greed Index 게이지 및 추이 차트, 6개 GARCH 모형 변동성 비교*
 
 ### 2. 멀티코인 실시간 전환
 
@@ -104,7 +114,7 @@ GPT-4o-mini가 가격 추세, FNG 지수, 변동성 상태를 종합하여 일�
 
 | 기능 | 설명 |
 |------|------|
-| **위험도 점수** | 5개 모형 가중평균 → 0~100 스코어 (Low/Moderate/High/Extreme) |
+| **위험도 점수** | 6개 모형 평균 → 0~100 스코어 (Low/Moderate/High/Extreme) |
 | **백테스트** | 날짜 범위 선택 → MSE, RMSE, MAE, MAPE, R² 성능 지표 비교 |
 | **모형 인터랙티브 설명** | 각 GARCH 모형의 수식, 파라미터, 특징을 탭 형태로 설명 |
 | **Rate Limiting** | IP 기반 슬라이딩 윈도우 — AI 브리핑 5req/60s, 포트폴리오 10req/60s |
@@ -172,7 +182,7 @@ graph TB
             SCH["APScheduler<br/>일일 0:05 UTC"]
 
             subgraph Services["서비스 레이어"]
-                GARCH["GARCH 모형 서비스<br/>5개 모형 · 5분 TTL 캐시"]
+                GARCH["GARCH 모형 서비스<br/>6개 모형 · 5분 TTL 캐시"]
                 RISK["Risk Score<br/>0~100 점수"]
                 SIG["Signal Engine<br/>BUY / SELL / NEUTRAL"]
                 MC["Monte Carlo<br/>10,000 시나리오"]
@@ -288,7 +298,7 @@ graph LR
         F["FNG 지수<br/>0~100"]
     end
 
-    subgraph Models["5개 GARCH 모형"]
+    subgraph Models["6개 GARCH 모형"]
         M1["GARCH(1,1)<br/>기본 조건부 분산<br/>σ²ₜ = ω + αε²ₜ₋₁ + βσ²ₜ₋₁"]
         M2["TGARCH<br/>비대칭 레버리지<br/>+ γε²ₜ₋₁·I(εₜ₋₁<0)"]
         M3["HAR-GARCH<br/>다중 스케일<br/>RV(1d, 7d, 30d)"]
@@ -480,7 +490,7 @@ Root Directory를 `frontend`로 지정하면 `frontend/vercel.json`이 적용됩
 | GET | `/api/price/current?coin=BTC` | 현재 가격 + 24h 변동 + FNG |
 | GET | `/api/price/multi` | BTC/ETH/SOL 전체 현재 가격 |
 | GET | `/api/price/history?days=365&coin=BTC` | 일별 OHLCV + FNG + 로그수익률 |
-| GET | `/api/volatility/predict?coin=BTC` | 5개 모형 변동성 예측 + 위험도 점수 |
+| GET | `/api/volatility/predict?coin=BTC` | 6개 모형 변동성 예측 + 위험도 점수 |
 | GET | `/api/volatility/compare?days=90&coin=BTC` | 예측 vs 실현 변동성 비교 |
 | GET | `/api/volatility/accuracy?days=60&coin=BTC` | 모형별 예측 정확도 시계열 |
 | GET | `/api/backtest?start=...&end=...&coin=BTC` | 기간별 백테스트 성능 지표 |
@@ -495,31 +505,48 @@ Root Directory를 `frontend`로 지정하면 `frontend/vercel.json`이 적용됩
 
 ## 통계적 근거
 
-> P학기 팀 프로젝트에서 도출한 분석 결과로, 이 서비스의 모형 선택과 외생변수 활용의 이론적 근거입니다.
+> 이 서비스는 2023년 학술제 논문([`docs/paper/`](docs/paper/))에서 출발했습니다. 그 논문은 기간 제약으로
+> GARCH·TGARCH·TGARCH+E.V 3개까지만 실제 적합했고, Table 7의 GARCH+E.V·HAR-GARCH·HAR-TGARCH는
+> 공란으로 남았습니다. 본문에 서술된 R²와 상관계수는 뒷받침하는 표가 유실되어 인용만으로는 검증할 수 없습니다.
+>
+> 그래서 **인용 대신 재계산**했습니다. 아래 수치는 보관된 원자료(2018-02-01 ~ 2023-11-30, 2,129일)로
+> 다시 계산한 값입니다. 모형 추정치 재현은 논문 PDF의 **부록 A**에 있습니다.
 
 <details>
-<summary>사전 검정 및 상관 분석 결과</summary>
+<summary>사전 검정 및 상관 분석 (재계산 결과)</summary>
 
 ### 사전 검정
 
-| 검정 | 목적 | 결과 |
-|------|------|------|
-| ADF 검정 | 시계열 정상성 확인 | 로그수익률 정상 (p < 0.05) |
-| ARCH-LM 검정 | 이분산성 확인 | ARCH 효과 존재 (p < 0.05) |
-| 정규성 검정 | 수익률 분포 확인 | 정규성 기각 → 두터운 꼬리 |
+| 검정 | 대상 | 통계량 | p-value | 판정 |
+|------|------|--------|---------|------|
+| ADF | 원가격 | -1.3792 | 0.5922 | 비정상 → 로그수익률 변환 근거 |
+| ADF | 로그수익률 | -21.6388 | < 1e-16 | 정상 |
+| Jarque-Bera | 로그수익률 | 142,976.8 | < 1e-16 | 정규성 기각 |
+| ARCH-LM (lag 1) | 로그수익률 | 4.730 | 0.0296 | ARCH 효과 있음 |
+| ARCH-LM (lag 12) | 로그수익률 | 11.448 | 0.4910 | ARCH 효과 없음 |
 
-### 상관 분석
+왜도 -2.5402, 초과첨도 39.9210으로 **두터운 꼬리가 뚜렷합니다.** 모든 모형에 t분포를 쓰는 근거입니다.
 
-| 변수 쌍 | 상관계수 | p-value |
-|---------|---------|---------|
-| BTC ↔ FNG | 0.72 | 2.2e-16 |
-| BTC ↔ KOSPI | -0.03 | 0.98 |
-| BTC ↔ NASDAQ | -0.05 | 0.84 |
+ADF 원가격 결과는 논문 서술(p=0.596035)과 사실상 일치합니다. 반면 **ARCH-LM은 시차 선택에 민감해
+lag 1에서만 유의**하며, 논문이 보고한 p=0.000317은 어떤 시차에서도 재현되지 않았습니다.
 
-### 핵심 발견
-1. **TGARCH 레버리지 효과** (γ = 0.099): 하락 시 변동성이 상승 시보다 약 10% 더 증가
-2. **HAR 구조**: 단기/중기/장기 변동성의 다중 스케일 분석이 예측력 향상
-3. **FNG 지수**: BTC 가격과 유의미한 상관 (r = 0.72) → 외생변수 활용 근거
+### 상관 분석 (BTC 로그수익률 기준, n=2,129)
+
+| 변수 쌍 | r | p-value | 논문 서술 |
+|---------|---|---------|-----------|
+| BTC ↔ FNG | 0.0550 | 1.11e-02 | 0.72 — **재현되지 않음** |
+| BTC ↔ KOSPI | 0.0017 | 0.938 | -0.03 (무상관 결론 일치) |
+| BTC ↔ NASDAQ | -0.0272 | 0.209 | -0.05 (무상관 결론 일치) |
+| BTC ↔ S&P500 | -0.0894 | 3.60e-05 | — |
+
+### 재검증 결론
+
+1. **전통 금융시장과 무관하다는 논문의 결론은 유지됩니다.** KOSPI·NASDAQ 모두 유의하지 않았습니다.
+2. **FNG가 강하게 상관한다는 주장(0.72)은 재현되지 않습니다.** 로그수익률 기준 0.055이고,
+   원가격으로 올려도 0.273, FNG 30일 이동평균과 비교해도 0.329에 그칩니다.
+3. 그럼에도 외생변수는 유지합니다. 최근 데이터(2025-09 ~ 2026-09)에서는
+   **거래량 ↔ 절대수익률이 0.5198 (p=1.4e-26)로 가장 강했습니다.**
+   `GET /api/volatility/factors`가 이 값을 요청마다 다시 계산합니다.
 
 </details>
 
@@ -557,7 +584,7 @@ crypto-volatility-dashboard/
 │       │   └── volatility.py    # Pydantic 응답 모델 (status 필드 포함)
 │       ├── services/
 │       │   ├── coingecko.py     # CoinGecko API 클라이언트
-│       │   ├── garch.py         # 5개 GARCH 모형 (외생변수 포함)
+│       │   ├── garch.py         # 6개 GARCH 모형 (외생변수 포함)
 │       │   ├── risk_score.py    # 위험도 점수 산출
 │       │   └── rate_limit.py    # IP 기반 슬라이딩 윈도우 Rate Limiter
 │       └── routers/
@@ -602,7 +629,7 @@ Jupyter 분석을 실시간 서비스로 전환하면서 **분석 코드와 서�
 
 - GARCH 적합 시간, 예외 전파, 동시 요청 등 Notebook에서는 고려하지 않았던 문제들을 해결
 - WebSocket 연결 수명주기와 exponential backoff 등 REST와 다른 사고방식을 경험
-- 5개 모형이 동시에 틀리는 상황을 보며, `status` 필드로 모형의 한계를 투명하게 노출하는 설계 학습
+- 여러 모형이 동시에 틀리는 상황을 보며, `status` 필드로 모형의 한계를 투명하게 노출하는 설계 학습
 - Docker/Alembic/Rate Limiting 등 프로덕션 인프라 구축 과정에서 운영 관점의 설계 경험
 - React Context + 코드 스플리팅으로 프론트엔드 상태 관리와 성능 최적화 실습
 

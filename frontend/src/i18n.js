@@ -1,7 +1,7 @@
 export const translations = {
     en: {
         title: 'Real-Time Bitcoin Volatility Dashboard',
-        subtitle: 'Real-time volatility prediction and market sentiment analysis based on 5 GARCH models',
+        subtitle: 'Real-time volatility prediction and market sentiment analysis based on 6 GARCH models',
         btcPrice: 'Bitcoin Price',
         volume: '24h Volume',
         fngIndex: 'FNG Index',
@@ -55,7 +55,7 @@ export const translations = {
     },
     ko: {
         title: '실시간 비트코인 변동성 대시보드',
-        subtitle: '5개 GARCH 모형 기반 실시간 변동성 예측 및 시장 심리 분석',
+        subtitle: '6개 GARCH 모형 기반 실시간 변동성 예측 및 시장 심리 분석',
         btcPrice: '비트코인 가격',
         volume: '24시간 거래량',
         fngIndex: '공포탐욕지수',

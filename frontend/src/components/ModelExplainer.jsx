@@ -25,8 +25,22 @@ const MODELS = [
             ko: '비대칭 레버리지 효과 추가. 나쁜 뉴스(가격 하락)가 좋은 뉴스(가격 상승)보다 변동성을 더 크게 증가시킴. 급락이 급등보다 급격한 암호화폐 시장에 필수적.',
         },
         insight: {
-            en: 'Use when: Market shows asymmetric behavior. γ = 0.099 means crashes amplify volatility ~10% more than rallies.',
-            ko: '활용: 시장이 비대칭 행동을 보일 때. γ = 0.099는 급락 시 변동성이 급등 대비 ~10% 더 증폭됨을 의미.',
+            en: 'Use when: Market shows asymmetric behavior. A positive γ means crashes amplify volatility more than rallies; the sign is estimated from data, not assumed.',
+            ko: '활용: 시장이 비대칭 행동을 보일 때. γ가 양수면 급락이 급등보다 변동성을 더 키운다는 뜻이며, 부호는 가정이 아니라 데이터에서 추정된다.',
+        },
+    },
+    {
+        name: 'GARCH+E.V',
+        color: '#0ea5e9',
+        formula: 'GARCH(1,1) + 외생변수(거래량, FNG)',
+        params: ['x₀: 표준화된 거래량', 'x₁: 표준화된 공포탐욕지수(FNG)'],
+        desc: {
+            en: 'GARCH(1,1) with exogenous variables. In the 2023 source paper this row was left blank — the estimates were never produced. It is fitted here for the first time.',
+            ko: 'GARCH(1,1)에 외생변수를 추가한 모형. 2023년 원 논문에서는 이 행이 공란이었고 추정치가 산출된 적이 없다. 여기서 처음으로 적합했다.',
+        },
+        insight: {
+            en: 'Note: the arch package cannot take exogenous regressors in the variance equation, so they enter the mean equation instead. This differs from the paper’s specification.',
+            ko: '참고: arch 패키지가 분산식 외생변수를 지원하지 않아 평균식에 투입했다. 논문 수식과는 다른 사양이다.',
         },
     },
     {
