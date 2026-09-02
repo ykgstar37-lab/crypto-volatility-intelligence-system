@@ -51,6 +51,9 @@ COINBASE_PRODUCTS = {"BTC-USD": "BTC", "ETH-USD": "ETH", "SOL-USD": "SOL"}
 # 지역 차단/거부로 재시도가 무의미한 상태 코드
 _BLOCKED_STATUS = {401, 403, 451}
 
+# 이 시간 동안 메시지가 없으면 연결이 죽은 것으로 보고 재연결/공급자 전환한다.
+_IDLE_TIMEOUT = 45
+
 
 async def broadcast(message: dict):
     """Send to all connected clients, remove dead ones."""
@@ -95,7 +98,8 @@ async def _run_binance():
     async with websockets.connect(url) as ws:
         logger.info(f"Connected to Binance WebSocket: {STREAMS}")
         relay_state["provider"] = "Binance"
-        async for raw in ws:
+        while True:
+            raw = await asyncio.wait_for(ws.recv(), timeout=_IDLE_TIMEOUT)
             try:
                 data = json.loads(raw)
                 if "data" in data:
@@ -118,10 +122,20 @@ async def _run_coinbase():
         }))
         logger.info(f"Connected to Coinbase WebSocket: {list(COINBASE_PRODUCTS)}")
         relay_state["provider"] = "Coinbase"
-        async for raw in ws:
+
+        while True:
+            # 연결만 살아 있고 데이터가 오지 않는 상태를 실패로 취급한다.
+            # 구독이 거부되면 연결은 유지된 채 ticker만 오지 않아 조용히 멈춘다.
+            raw = await asyncio.wait_for(ws.recv(), timeout=_IDLE_TIMEOUT)
             try:
                 d = json.loads(raw)
-                if d.get("type") != "ticker":
+                kind = d.get("type")
+                if kind != "ticker":
+                    # 구독 확인/에러 같은 제어 메시지는 원인 추적에 필요하므로 남긴다.
+                    if kind in ("error", "subscriptions"):
+                        logger.info(f"Coinbase {kind}: {str(d)[:200]}")
+                        if kind == "error":
+                            relay_state["last_error"] = f"Coinbase: {str(d)[:200]}"
                     continue
                 ts = int(
                     datetime.strptime(
@@ -161,6 +175,14 @@ async def binance_listener():
         try:
             await run()
             backoff = 1
+        except asyncio.TimeoutError:
+            relay_state["provider"] = None
+            relay_state["last_error"] = f"{name}: {_IDLE_TIMEOUT}초간 메시지 없음"
+            logger.warning(
+                f"{name}에서 {_IDLE_TIMEOUT}초간 메시지가 없어 다음 공급자로 전환합니다."
+            )
+            idx += 1
+            continue
         except Exception as e:
             status = _status_of(e)
             relay_state["provider"] = None
