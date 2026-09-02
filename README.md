@@ -2,21 +2,27 @@
 
 [![CI](https://github.com/ykgstar37-lab/crypto-volatility-intelligence-system/actions/workflows/ci.yml/badge.svg)](https://github.com/ykgstar37-lab/crypto-volatility-intelligence-system/actions/workflows/ci.yml)
 
+**[▶ 라이브 데모](https://crypto-volatility-intelligence-syst.vercel.app/)** · [API 헬스체크](https://cryptovol-api.onrender.com/api/health) · [논문 + 재현 부록](docs/paper/)
+
+> 백엔드가 Render 무료 플랜이라 15분 이상 유휴 상태였다면 서버가 깨어나는 데 약 50초가 걸립니다.
+> 차트가 비어 보여도 잠시 기다리면 채워집니다.
+
 > **GARCH 변동성 모형을 실시간 웹 서비스로 전환한 멀티코인 변동성 예측 대시보드**
 >
 > *A real-time multi-coin volatility forecasting dashboard powered by GARCH models, Monte Carlo simulation, and AI market briefing.*
 
 ![메인 대시보드](image/cryptovol/cryptovol-main.png)
 
-**출발점** — 이 프로젝트는 2023년 학술제 논문 *「암호화폐 변동성 비교 및 분석: GARCH 모델 기반 예측」*(3인 팀)에서
-시작했습니다. 그 논문은 결론부에 두 가지를 한계로 적었습니다.
+**출발점** — 이 프로젝트는 2023년 학술제 팀 프로젝트(3인) *「암호화폐 변동성 비교 및 분석: GARCH 모델 기반 예측」*
+에서 시작했습니다. 팀에서는 짧은 기간 안에 **GARCH · TGARCH · GARCH+E.V · TGARCH+E.V**를 적합하고
+HAR 계열까지 모형을 설계했으며, 논문은 다음 두 가지를 향후 과제로 남겼습니다.
 
 > "HAR-TGARCH-X와 같은 더 복잡한 결합 모형의 완전한 구현이 이루어지지 못한 점이 있다.
 > 향후 연구에서는 … **실시간 예측 시스템으로의 발전을 모색할 필요가 있다.**"
 
-이 저장소는 그 두 문장에 대한 답입니다. 논문이 공란으로 남긴 모형을 실제로 적합하고,
-정적 분석을 상시 서빙되는 API로 옮겼습니다.
-전문과 2026년 재현 부록은 [`docs/paper/`](docs/paper/)에 있습니다.
+이 저장소는 그 두 과제를 개인 작업으로 이어받은 결과입니다. **HAR-GARCH · HAR-TGARCH · HAR-TGARCH-X**를
+실제로 구현해 6개 모형 비교 체계를 완성하고, 정적 분석을 상시 서빙되는 API로 옮겼습니다.
+논문 전문과 2026년 재현 부록은 [`docs/paper/`](docs/paper/)에 있습니다.
 
 ---
 
@@ -27,14 +33,14 @@ P학기(통계 실무 프로젝트)에서 팀으로 비트코인 변동성을 GA
 | 구분 | P학기 (팀) | 이 프로젝트 (개인) |
 |------|-----------|-------------------|
 | 형태 | Jupyter 분석 + 논문 | 풀스택 웹 서비스 |
-| 데이터 | CSV 정적 데이터 | CoinGecko API + Binance WebSocket 실시간 |
+| 데이터 | CSV 정적 데이터 | CoinGecko API + WebSocket 실시간 틱 |
 | 코인 | BTC 단일 | BTC / ETH / SOL 멀티코인 |
 | 모형 | 수동 실행 | API 자동 서빙 + 정확도 추적 |
 | 배포 | 로컬 | Render + Vercel 클라우드 |
 
 **개인 확장에서 직접 설계·구현한 부분:**
 - FastAPI + React 풀스택 아키텍처 설계
-- Binance WebSocket 릴레이 서버 구현
+- 실시간 틱 릴레이 서버 구현 (Binance → Coinbase 폴백)
 - GARCH 모형 실시간 API 서빙 (캐싱, 에러 핸들링)
 - Monte Carlo 포트폴리오 시뮬레이터
 - 예측 정확도 트래커 / 매매 시그널 엔진 / 백테스트 시스템
@@ -71,7 +77,7 @@ BTC/ETH/SOL 탭 클릭 시 가격, 차트, 변동성 예측, 시그널, 리더�
   <img src="image/cryptovol/coin-switch-sol.gif" width="49%" alt="SOL 전환" />
 </p>
 
-**기술적 결정**: 프론트엔드에서 Binance에 직접 연결하면 CORS와 키 노출 문제가 발생합니다. FastAPI WebSocket 엔드포인트가 Binance 스트림을 수신하고, Set 기반 클라이언트 추적으로 연결된 브라우저에 브로드캐스트하는 릴레이 구조를 설계했습니다. 연결 끊김 시 exponential backoff(1s → 2s → ... → 60s)로 재연결하여 장애 시 과도한 재연결을 방지합니다. 코인 전환 시 `Promise.all`로 API 호출을 병렬화하고, 5분 TTL 인메모리 캐시로 GARCH 재계산을 방지합니다.
+**기술적 결정**: 프론트엔드에서 Binance에 직접 연결하면 CORS와 키 노출 문제가 발생합니다. FastAPI WebSocket 엔드포인트가 Binance 스트림을 수신하고, Set 기반 클라이언트 추적으로 연결된 브라우저에 브로드캐스트하는 릴레이 구조를 설계했습니다. 연결 끊김 시 exponential backoff(1s → 2s → ... → 60s)로 재연결하여 장애 시 과도한 재연결을 방지합니다. 다만 배포 후 Binance가 `HTTP 451`(지역 차단)로 연결을 거부했는데, 이는 재시도로 풀리지 않는 정책 거부라 백오프만으로는 영원히 복구되지 않았습니다. 그래서 **공급자 목록(Binance → Coinbase)** 구조로 바꿔, `401/403/451`처럼 재시도가 무의미한 상태 코드를 만나면 해당 공급자를 건너뛰고 다음으로 넘어가도록 했습니다. 일시적 오류에는 기존 백오프를 그대로 씁니다. 코인 전환 시 `Promise.all`로 API 호출을 병렬화하고, 5분 TTL 인메모리 캐시로 GARCH 재계산을 방지합니다.
 
 ### 3. 매매 시그널 + 예측 정확도 트래커
 
@@ -137,7 +143,7 @@ GPT-4o-mini가 가격 추세, FNG 지수, 변동성 상태를 종합하여 일�
 | **arch** | GARCH 모형 적합 및 예측 |
 | **APScheduler** | 일일 데이터 수집 스케줄러 |
 | **httpx** | CoinGecko API 비동기 호출 |
-| **websockets** | Binance WebSocket 스트림 수신 (exponential backoff) |
+| **websockets** | 실시간 틱 스트림 수신 (Binance → Coinbase 폴백, exponential backoff) |
 | **pandas / numpy / scipy** | 데이터 처리 및 통계 연산 |
 | **OpenAI API** | GPT-4o-mini AI 브리핑 생성 (일일 캐싱) |
 
@@ -158,7 +164,7 @@ GPT-4o-mini가 가격 추세, FNG 지수, 변동성 상태를 종합하여 일�
 | **PostgreSQL** | 프로덕션 데이터베이스 (SQLite 개발용 호환) |
 | **Render** | 백엔드 배포 |
 | **Vercel** | 프론트엔드 배포 |
-| **Binance WebSocket** | 실시간 거래 데이터 소스 |
+| **Binance / Coinbase WebSocket** | 실시간 거래 데이터 소스 (지역 차단 시 자동 전환) |
 
 ---
 
@@ -505,12 +511,11 @@ Root Directory를 `frontend`로 지정하면 `frontend/vercel.json`이 적용됩
 
 ## 통계적 근거
 
-> 이 서비스는 2023년 학술제 논문([`docs/paper/`](docs/paper/))에서 출발했습니다. 그 논문은 기간 제약으로
-> GARCH·TGARCH·TGARCH+E.V 3개까지만 실제 적합했고, Table 7의 GARCH+E.V·HAR-GARCH·HAR-TGARCH는
-> 공란으로 남았습니다. 본문에 서술된 R²와 상관계수는 뒷받침하는 표가 유실되어 인용만으로는 검증할 수 없습니다.
->
-> 그래서 **인용 대신 재계산**했습니다. 아래 수치는 보관된 원자료(2018-02-01 ~ 2023-11-30, 2,129일)로
-> 다시 계산한 값입니다. 모형 추정치 재현은 논문 PDF의 **부록 A**에 있습니다.
+> 아래 수치는 팀 프로젝트의 분석을 **인용한 것이 아니라 다시 계산한 값**입니다.
+> 당시 산출물 일부가 남아 있지 않아 본문의 R²와 상관계수를 그대로 옮겨 적을 수 없었고,
+> 그럴 바에는 원자료로 직접 재계산하는 편이 검증 가능하다고 판단했습니다.
+> 대상 자료는 보관된 원자료 2,129일(2018-02-01 ~ 2023-11-30)이며,
+> 모형 추정치 재현은 논문 PDF의 **부록 A**에 있습니다.
 
 <details>
 <summary>사전 검정 및 상관 분석 (재계산 결과)</summary>
