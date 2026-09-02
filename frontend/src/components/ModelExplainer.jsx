@@ -25,8 +25,8 @@ const MODELS = [
             ko: '비대칭 레버리지 효과 추가. 나쁜 뉴스(가격 하락)가 좋은 뉴스(가격 상승)보다 변동성을 더 크게 증가시킴. 급락이 급등보다 급격한 암호화폐 시장에 필수적.',
         },
         insight: {
-            en: 'Use when: Market shows asymmetric behavior. A positive γ means crashes amplify volatility more than rallies; the sign is estimated from data, not assumed.',
-            ko: '활용: 시장이 비대칭 행동을 보일 때. γ가 양수면 급락이 급등보다 변동성을 더 키운다는 뜻이며, 부호는 가정이 아니라 데이터에서 추정된다.',
+            en: 'Use when: Market shows asymmetric behavior. γ = 0.0990 (reproduced as 0.0986 under the original spec) means crashes amplify volatility ~10% more than rallies. Note the sign flips under a Student-t error distribution.',
+            ko: '활용: 시장이 비대칭 행동을 보일 때. γ = 0.0990(원 사양 재현값 0.0986)은 급락 시 변동성이 급등 대비 약 10% 더 증폭됨을 의미. 단, 오차분포를 t분포로 바꾸면 부호가 뒤집힌다.',
         },
     },
     {
