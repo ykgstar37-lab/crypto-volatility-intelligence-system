@@ -390,11 +390,14 @@ npm run dev
 
 ### 환경 변수
 
-`backend/.env.example`을 복사하여 `backend/.env`를 생성합니다.
+백엔드와 프론트엔드 각각 `.env.example`을 복사합니다.
 
 ```bash
 cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env
 ```
+
+**backend/.env**
 
 ```
 # SQLite (개발용) 또는 PostgreSQL (프로덕션)
@@ -402,7 +405,15 @@ DATABASE_URL=sqlite:///./data/crypto.db
 # DATABASE_URL=postgresql://cryptovol:cryptovol@localhost:5432/cryptovol
 
 CORS_ORIGINS=http://localhost:5173,http://localhost:3000
+CORS_ORIGIN_REGEX=       # Vercel preview 도메인 정규식 (선택)
 OPENAI_API_KEY=sk-...    # AI 브리핑용 (선택)
+```
+
+**frontend/.env**
+
+```
+VITE_API_URL=    # 비우면 vite 프록시(localhost:8001) 사용
+VITE_WS_URL=     # 비우면 ws://<현재 호스트> 폴백
 ```
 
 ### Alembic 마이그레이션
@@ -412,6 +423,49 @@ cd backend
 alembic upgrade head                          # 스키마 적용
 alembic revision --autogenerate -m "변경 설명"  # 새 마이그레이션 생성
 ```
+
+---
+
+## 배포
+
+프론트엔드는 Vercel(정적 호스팅), 백엔드는 Render(상시 프로세스)로 **분리 배포**합니다.
+
+### 왜 백엔드를 서버리스에 올리지 않는가
+
+이 프로젝트의 백엔드는 요청 사이에도 프로세스가 살아 있어야 동작합니다. 서버리스 함수는 요청 단위로 뜨고 사라지므로 아래 네 가지가 모두 깨집니다.
+
+| 구성 요소 | 서버리스에서 깨지는 이유 |
+|---|---|
+| `routers/ws.py` — `/ws/ticks` + Binance 릴레이 | 서버리스 함수는 WebSocket 서버를 유지할 수 없음 |
+| `main.py` lifespan — APScheduler 일일 크론, 365일 백필 | 요청이 없는 동안 실행될 프로세스가 없음 |
+| `database.py` — SQLite 파일 DB | 파일시스템이 휘발성이라 백필 데이터가 매번 소실 |
+| GARCH 5분 TTL 캐시, IP 기반 rate limit | 프로세스 전역 메모리 상태 → 인스턴스가 분산되면 무효화 |
+
+### 백엔드 — Render
+
+루트의 `render.yaml` Blueprint를 사용합니다. `backend/Dockerfile`로 빌드되며, `/api/health`로 헬스체크합니다.
+
+설정할 환경 변수:
+
+| 변수 | 값 |
+|---|---|
+| `DATABASE_URL` | Neon/Supabase 등 외부 PostgreSQL 연결 문자열 |
+| `CORS_ORIGINS` | Vercel 프로덕션 도메인 |
+| `CORS_ORIGIN_REGEX` | `https://cryptovol-.*\.vercel\.app` (preview 배포 허용, 선택) |
+| `OPENAI_API_KEY` | AI 브리핑용 (선택) |
+
+> **무료 플랜 주의** — persistent disk가 없어 SQLite는 재시작마다 소실되므로 외부 PostgreSQL이 필요합니다. 또한 15분 유휴 시 슬립되며, 깨어날 때 365일 백필이 다시 실행되고 WebSocket 연결이 끊깁니다.
+
+### 프론트엔드 — Vercel
+
+Root Directory를 `frontend`로 지정하면 `frontend/vercel.json`이 적용됩니다 (Vite 빌드 + SPA rewrite).
+
+| 변수 | 값 |
+|---|---|
+| `VITE_API_URL` | `https://<render-app>.onrender.com` |
+| `VITE_WS_URL` | `wss://<render-app>.onrender.com` |
+
+> **`wss://`를 반드시 사용할 것** — `VITE_WS_URL`을 비워두면 `ws://<현재 호스트>`로 폴백하는데, HTTPS 페이지에서 `ws://`는 브라우저가 mixed content로 차단합니다. 에러 없이 실시간 시세만 조용히 멈추므로 알아채기 어렵습니다.
 
 ---
 

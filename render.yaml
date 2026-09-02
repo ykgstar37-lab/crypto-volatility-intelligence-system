@@ -1,0 +1,31 @@
+# Render Blueprint — 백엔드(FastAPI) 배포용
+#
+# 이 프로젝트의 백엔드는 서버리스에 올릴 수 없다:
+#   - /ws/ticks WebSocket 서버 + Binance 릴레이 상시 연결 (routers/ws.py)
+#   - APScheduler 일일 크론 + 서버 시작 시 365일 백필 (main.py lifespan)
+#   - GARCH 결과 5분 TTL 인메모리 캐시, IP 기반 rate limit (프로세스 전역 상태)
+# 따라서 상시 프로세스가 유지되는 Render Web Service를 사용한다.
+# 프론트엔드는 frontend/vercel.json으로 Vercel에 따로 배포한다.
+
+services:
+  - type: web
+    name: cryptovol-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /api/health
+    plan: free
+    envVars:
+      # Neon/Supabase 등 외부 PostgreSQL 연결 문자열.
+      # Render 무료 플랜은 persistent disk가 없어 SQLite는 재시작마다 소실된다.
+      - key: DATABASE_URL
+        sync: false
+      # Vercel 프로덕션 도메인 (쉼표 구분)
+      - key: CORS_ORIGINS
+        sync: false
+      # Vercel preview 도메인 정규식. 예: https://cryptovol-.*\.vercel\.app
+      - key: CORS_ORIGIN_REGEX
+        sync: false
+      # AI 브리핑용(선택). 미설정 시 브리핑 엔드포인트가 안내 메시지로 폴백한다.
+      - key: OPENAI_API_KEY
+        sync: false

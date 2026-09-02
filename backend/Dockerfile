@@ -14,4 +14,5 @@ RUN mkdir -p data
 
 EXPOSE 8001
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001"]
+# Render 등 PaaS는 $PORT로 바인딩 포트를 주입한다. 없으면 로컬 기본값 8001.
+CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8001}
