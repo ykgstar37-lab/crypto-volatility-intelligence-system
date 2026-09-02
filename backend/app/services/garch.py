@@ -102,15 +102,32 @@ def fit_har_tgarch_x(returns: pd.Series, volume: pd.Series, fng: pd.Series) -> f
         return 0.0
 
     r = (aligned["rv_d"] * 100).values
-    exog = aligned[["vol_lag", "fng_lag"]].values
 
-    # Pass exogenous variables to the mean equation via x=
-    model = arch_model(r, x=exog, vol="Garch", p=1, o=1, q=1, dist="t", rescale=False)
+    # 거래량은 ~1e10, FNG는 0~100 스케일이라 원값을 그대로 넣으면
+    # LS 회귀가 수치적으로 발산한다(예측 분산이 1e16까지 튄다).
+    # 거래량은 로그를 취해 분포를 좁힌 뒤 둘 다 z-score로 표준화한다.
+    exog_raw = np.column_stack([
+        np.log(aligned["vol_lag"].values),
+        aligned["fng_lag"].values.astype(float),
+    ])
+    exog_mean = exog_raw.mean(axis=0)
+    exog_std = np.where(exog_raw.std(axis=0) > 0, exog_raw.std(axis=0), 1.0)
+    exog = (exog_raw - exog_mean) / exog_std
+
+    # mean="LS"가 필수다. arch_model의 기본 평균모형은 ConstantMean이고,
+    # ConstantMean은 x=를 조용히 무시해서 외생변수가 실제로 적합되지 않는다
+    # (그 상태로 forecast(x=...)를 부르면 "model does not contain any
+    # exogenous variables" 에러가 난다). LS로 지정해야 x0, x1이 추정된다.
+    model = arch_model(
+        r, x=exog, mean="LS", vol="Garch", p=1, o=1, q=1, dist="t", rescale=False
+    )
     res = model.fit(disp="off", show_warning=False)
 
-    # For forecasting, provide last known exog values (shape: horizon x n_exog)
-    last_exog = exog[-1:].reshape(1, -1)
-    forecast = res.forecast(horizon=1, x=last_exog)
+    # forecast의 x는 외생변수가 2개 이상이면 (n_exog, nobs, horizon) 3차원이어야 한다.
+    # 마지막 관측 exog를 예측 시점 값으로 사용한다.
+    n_exog = exog.shape[1]
+    last_exog = np.tile(exog[-1].reshape(n_exog, 1, 1), (1, len(r), 1))
+    forecast = res.forecast(horizon=1, x=last_exog, reindex=False)
     sigma2 = forecast.variance.values[-1, 0]
     return math.sqrt(sigma2) / 100
 
