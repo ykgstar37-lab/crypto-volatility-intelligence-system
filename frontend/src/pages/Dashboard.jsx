@@ -1,4 +1,6 @@
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import lazyWithRetry from '../lazyWithRetry';
+import ErrorBoundary from '../components/ErrorBoundary';
 import StatCard from '../components/StatCard';
 import PriceChart from '../components/PriceChart';
 import FngGauge from '../components/FngGauge';
@@ -17,13 +19,13 @@ import ToastContainer from '../components/Toast';
 import { SkeletonCard, SkeletonChart, SkeletonWide } from '../components/Skeleton';
 
 // Lazy-loaded heavy components (chart-intensive / large bundles)
-const VolatilityChart = lazy(() => import('../components/VolatilityChart'));
-const BacktestPanel = lazy(() => import('../components/BacktestPanel'));
-const ModelExplainer = lazy(() => import('../components/ModelExplainer'));
-const AiMascot = lazy(() => import('../components/AiMascot'));
-const AccuracyTracker = lazy(() => import('../components/AccuracyTracker'));
-const PortfolioSimulator = lazy(() => import('../components/PortfolioSimulator'));
-const BottomDock = lazy(() => import('../components/BottomDock'));
+const VolatilityChart = lazyWithRetry(() => import('../components/VolatilityChart'));
+const BacktestPanel = lazyWithRetry(() => import('../components/BacktestPanel'));
+const ModelExplainer = lazyWithRetry(() => import('../components/ModelExplainer'));
+const AiMascot = lazyWithRetry(() => import('../components/AiMascot'));
+const AccuracyTracker = lazyWithRetry(() => import('../components/AccuracyTracker'));
+const PortfolioSimulator = lazyWithRetry(() => import('../components/PortfolioSimulator'));
+const BottomDock = lazyWithRetry(() => import('../components/BottomDock'));
 import useApp from '../hooks/useApp';
 import { fetchCurrentPrice, fetchPriceHistory, fetchVolatilityPredict, fetchEthPrice } from '../api/client';
 import useRealtimePrice from '../hooks/useRealtimePrice';
@@ -313,7 +315,7 @@ export default function Dashboard() {
                     </div>
 
                     {/* Lazy-loaded sections wrapped in Suspense */}
-                    <Suspense fallback={<SkeletonWide />}>
+                    <ErrorBoundary><Suspense fallback={<SkeletonWide />}>
                     {/* Row 3: Volatility (full width) */}
                     <div id="models" className="mb-6">
                         <VolatilityChart coin={coin} t={t} />
@@ -347,7 +349,7 @@ export default function Dashboard() {
                     <div id="backtest" className="mb-6">
                         <BacktestPanel coin={coin} t={t} />
                     </div>
-                    </Suspense>
+                    </Suspense></ErrorBoundary>
 
                     {/* Row 7: API Log */}
                     <div id="log" className="mb-6">
@@ -363,17 +365,17 @@ export default function Dashboard() {
             </main>
 
             {/* Bottom Dock - floating tools bar */}
-            <Suspense fallback={null}>
+            <ErrorBoundary><Suspense fallback={null}>
                 <BottomDock dark={dark} ethPrice={liveEthPrice} price={{ ...price, price: liveCoinPrice }} volatility={volatility} t={t} addToast={addToast} />
-            </Suspense>
+            </Suspense></ErrorBoundary>
 
             {/* Toast notifications */}
             <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
             {/* AI Mascot - floating bottom right */}
-            <Suspense fallback={null}>
+            <ErrorBoundary><Suspense fallback={null}>
                 <AiMascot t={t} />
-            </Suspense>
+            </Suspense></ErrorBoundary>
         </div>
     );
 }
