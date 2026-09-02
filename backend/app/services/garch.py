@@ -72,18 +72,39 @@ def fit_har_garch(returns: np.ndarray) -> float:
     return math.sqrt(sigma2) / 100
 
 
+# HAR 계열은 수익률이 아니라 실현변동성(rv_d, std~0.0016)에 적합한다.
+# 관례대로 ×100만 하면 std가 0.16이라 MLE 옵티마이저가 반복 한계에 걸려
+# 수렴하지 못한다(convergence_flag=9). ×1000이면 std~1.6으로 수렴한다.
+_HAR_SCALE = 1000
+
+
 def fit_har_tgarch(returns: pd.Series) -> float:
     """HAR-TGARCH — HAR features + asymmetric GARCH."""
     har = _compute_har_features(returns)
     if len(har) < 60:
         return 0.0
 
-    r = (har["rv_d"] * 100).values
+    r = (har["rv_d"] * _HAR_SCALE).values
     model = arch_model(r, vol="Garch", p=1, o=1, q=1, dist="t", rescale=False)
     res = model.fit(disp="off", show_warning=False)
     forecast = res.forecast(horizon=1)
     sigma2 = forecast.variance.values[-1, 0]
-    return math.sqrt(sigma2) / 100
+    return math.sqrt(sigma2) / _HAR_SCALE
+
+
+def _rescale(col: np.ndarray) -> np.ndarray:
+    """외생변수를 평균 0, 표준편차 1로 맞춘다.
+
+    호출부에 따라 원값이 올 수도(routers는 volume을 이미 z-score 표준화해서
+    넘기고, 테스트나 다른 호출부는 원값을 넘긴다) 있으므로 둘 다 견뎌야 한다.
+    전부 양수일 때만 로그로 왜도를 줄인다 — 이미 표준화된 값에 로그를 취하면
+    음수 구간이 NaN이 되어 적합이 "SVD did not converge"로 실패한다.
+    """
+    col = np.asarray(col, dtype=float)
+    if np.all(col > 0):
+        col = np.log(col)
+    sd = col.std()
+    return (col - col.mean()) / (sd if sd > 0 else 1.0)
 
 
 def fit_har_tgarch_x(returns: pd.Series, volume: pd.Series, fng: pd.Series) -> float:
@@ -101,18 +122,16 @@ def fit_har_tgarch_x(returns: pd.Series, volume: pd.Series, fng: pd.Series) -> f
     if len(aligned) < 60:
         return 0.0
 
-    r = (aligned["rv_d"] * 100).values
+    r = (aligned["rv_d"] * _HAR_SCALE).values
 
-    # 거래량은 ~1e10, FNG는 0~100 스케일이라 원값을 그대로 넣으면
-    # LS 회귀가 수치적으로 발산한다(예측 분산이 1e16까지 튄다).
-    # 거래량은 로그를 취해 분포를 좁힌 뒤 둘 다 z-score로 표준화한다.
-    exog_raw = np.column_stack([
-        np.log(aligned["vol_lag"].values),
-        aligned["fng_lag"].values.astype(float),
+    # 거래량 원값(~1e10)과 FNG(0~100)를 그대로 넣으면 LS 회귀가 발산한다
+    # (예측 분산이 1e16까지 튄다). 스케일을 맞춰서 넘긴다.
+    exog = np.column_stack([
+        _rescale(aligned["vol_lag"].values.astype(float)),
+        _rescale(aligned["fng_lag"].values.astype(float)),
     ])
-    exog_mean = exog_raw.mean(axis=0)
-    exog_std = np.where(exog_raw.std(axis=0) > 0, exog_raw.std(axis=0), 1.0)
-    exog = (exog_raw - exog_mean) / exog_std
+    if not np.isfinite(exog).all():
+        return 0.0
 
     # mean="LS"가 필수다. arch_model의 기본 평균모형은 ConstantMean이고,
     # ConstantMean은 x=를 조용히 무시해서 외생변수가 실제로 적합되지 않는다
@@ -129,7 +148,7 @@ def fit_har_tgarch_x(returns: pd.Series, volume: pd.Series, fng: pd.Series) -> f
     last_exog = np.tile(exog[-1].reshape(n_exog, 1, 1), (1, len(r), 1))
     forecast = res.forecast(horizon=1, x=last_exog, reindex=False)
     sigma2 = forecast.variance.values[-1, 0]
-    return math.sqrt(sigma2) / 100
+    return math.sqrt(sigma2) / _HAR_SCALE
 
 
 def predict_all(returns: pd.Series, volume: pd.Series | None = None, fng: pd.Series | None = None) -> list[dict]:

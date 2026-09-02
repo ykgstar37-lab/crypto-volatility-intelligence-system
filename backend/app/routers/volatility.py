@@ -34,9 +34,8 @@ def _load_series(db: Session, days: int = 400, symbol: str = "BTC"):
     volume = pd.Series([r.volume or 0 for r in rows], index=dates)
     fng = pd.Series([r.fng or 50 for r in rows], index=dates)
 
-    if volume.std() > 0:
-        volume = (volume - volume.mean()) / volume.std()
-
+    # 표준화하지 않고 원값으로 넘긴다. 스케일 조정은 garch._rescale이 담당하며,
+    # 여기서 미리 z-score를 씌우면 음수가 생겨 로그 변환이 막힌다.
     return returns, volume, fng
 
 
