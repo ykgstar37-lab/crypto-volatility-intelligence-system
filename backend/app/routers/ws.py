@@ -29,6 +29,15 @@ clients: Set[WebSocket] = set()
 # ── Latest prices (for newly connected clients) ──
 latest: dict[str, dict] = {}
 
+# ── 릴레이 상태 (헬스체크로 노출해 배포 후 원인 추적을 가능하게 한다) ──
+relay_state: dict = {
+    "provider": None,      # 현재 연결된 공급자
+    "ticks": 0,            # 수신 누적 틱 수
+    "last_tick_at": None,  # 마지막 틱 시각(epoch ms)
+    "blocked": [],         # 지역 차단 등으로 제외된 공급자
+    "last_error": None,    # 마지막 실패 사유
+}
+
 BINANCE_WS = "wss://stream.binance.com:9443/ws"
 STREAMS = ["btcusdt@trade", "ethusdt@trade", "solusdt@trade"]
 SYMBOL_MAP = {"BTCUSDT": "BTC", "ETHUSDT": "ETH", "SOLUSDT": "SOL"}
@@ -76,6 +85,8 @@ async def _emit(symbol: str, price: float, ts: int):
         return
     msg = {"type": "tick", "symbol": symbol, "price": price, "ts": ts}
     latest[symbol] = msg
+    relay_state["ticks"] += 1
+    relay_state["last_tick_at"] = ts
     await broadcast(msg)
 
 
@@ -83,6 +94,7 @@ async def _run_binance():
     url = f"{BINANCE_WS}/{'/'.join(STREAMS)}"
     async with websockets.connect(url) as ws:
         logger.info(f"Connected to Binance WebSocket: {STREAMS}")
+        relay_state["provider"] = "Binance"
         async for raw in ws:
             try:
                 data = json.loads(raw)
@@ -105,6 +117,7 @@ async def _run_coinbase():
             "channels": ["ticker"],
         }))
         logger.info(f"Connected to Coinbase WebSocket: {list(COINBASE_PRODUCTS)}")
+        relay_state["provider"] = "Coinbase"
         async for raw in ws:
             try:
                 d = json.loads(raw)
@@ -150,8 +163,11 @@ async def binance_listener():
             backoff = 1
         except Exception as e:
             status = _status_of(e)
+            relay_state["provider"] = None
+            relay_state["last_error"] = f"{name}: {e}"
             if status in _BLOCKED_STATUS:
                 blocked.add(name)
+                relay_state["blocked"] = sorted(blocked)
                 logger.warning(
                     f"{name} WS가 HTTP {status}로 거부되었습니다(지역 차단 추정). "
                     f"이 공급자를 건너뜁니다."

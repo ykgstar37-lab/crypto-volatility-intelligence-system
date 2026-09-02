@@ -50,7 +50,12 @@ class TestHealthEndpoint:
     def test_health_returns_ok(self, client):
         resp = client.get("/api/health")
         assert resp.status_code == 200
-        assert resp.json() == {"status": "ok"}
+        body = resp.json()
+        assert body["status"] == "ok"
+        # 릴레이 상태는 배포 후 원인 추적에 쓰이므로 계약을 고정한다
+        relay = body["relay"]
+        for key in ("provider", "ticks", "last_tick_at", "blocked", "last_error", "subscribers"):
+            assert key in relay
 
 
 class TestPriceEndpoints:

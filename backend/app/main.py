@@ -79,4 +79,9 @@ app.include_router(ws_router)
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok"}
+    from app.routers.ws import clients, relay_state
+
+    return {
+        "status": "ok",
+        "relay": {**relay_state, "subscribers": len(clients)},
+    }
