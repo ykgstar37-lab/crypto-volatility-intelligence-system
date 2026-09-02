@@ -4,8 +4,7 @@
 
 **[▶ 라이브 데모](https://crypto-volatility-intelligence-syst.vercel.app/)** · [API 헬스체크](https://cryptovol-api.onrender.com/api/health) · [논문 + 재현 부록](docs/paper/)
 
-> 백엔드가 Render 무료 플랜이라 15분 이상 유휴 상태였다면 서버가 깨어나는 데 약 50초가 걸립니다.
-> 차트가 비어 보여도 잠시 기다리면 채워집니다.
+> 백엔드가 Render 무료 플랜이라 서버가 깨어나는 데 약 50초가 걸립니다. 
 
 > **GARCH 변동성 모형을 실시간 웹 서비스로 전환한 멀티코인 변동성 예측 대시보드**
 >
